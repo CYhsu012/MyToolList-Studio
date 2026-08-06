@@ -79,6 +79,38 @@
       if (this.ctx.state === 'suspended') {
         this.ctx.resume();
       }
+      this.enableIOSBackgroundAudioKeeper();
+    }
+
+    // --- iOS Safari Lock Screen Background Audio Keeper ---
+    enableIOSBackgroundAudioKeeper() {
+      const silentAudio = document.getElementById('silentAudioLoop');
+      if (silentAudio && silentAudio.paused) {
+        silentAudio.play().catch(() => {});
+      }
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'PomodoroFlow 🍅 雙耳拍頻與專注',
+          artist: 'Binaural Beats Studio',
+          album: '背景與鎖定螢幕持續發聲中'
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+          if (silentAudio) silentAudio.play().catch(() => {});
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (silentAudio) silentAudio.pause();
+        });
+      }
+    }
+
+    disableIOSBackgroundAudioKeeper() {
+      const silentAudio = document.getElementById('silentAudioLoop');
+      if (silentAudio && this.currentAmbient === 'none' && !this.binauralMasterGain) {
+        silentAudio.pause();
+      }
     }
 
     // --- Alert Sound Synthesizers ---
@@ -260,6 +292,7 @@
       });
       this.ambientSourceNodes = [];
       this.currentAmbient = 'none';
+      this.disableIOSBackgroundAudioKeeper();
     }
 
     setVolume(volumePct) {
