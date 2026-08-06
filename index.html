@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PomodoroFlow | 全功能極致專注番茄鐘</title>
+  <meta name="description" content="全功能現代化 Local Web 番茄鐘，整合任務管理、統計圖表、離線 Web Audio 白噪音與禪模式">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dark-glass">
+  <div class="app-background">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- 頂部導覽列 Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🍅</span>
+        <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
+      </div>
+      
+      <div class="header-actions">
+        <!-- 連勝數顯示 -->
+        <div class="streak-badge" title="連續專注天數">
+          <span class="fire-icon">🔥</span>
+          <span id="streakCount">0</span> 天
+        </div>
+
+        <!-- 主題切換選擇器 -->
+        <div class="theme-selector-wrapper">
+          <select id="themeSelect" class="icon-select" title="切換視覺主題">
+            <option value="dark-glass">🌌 深邃夜空 (Dark)</option>
+            <option value="emerald-forest">🌲 森林靜謐 (Emerald)</option>
+            <option value="sunset-glow">🌅 日落橙光 (Sunset)</option>
+            <option value="cyberpunk-neon">⚡ 賽博朋克 (Cyberpunk)</option>
+          </select>
+        </div>
+
+        <!-- 禪模式按鈕 -->
+        <button id="zenBtn" class="btn btn-icon" title="全螢幕禪模式 (Zen Mode)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+        </button>
+
+        <!-- 統計數據按鈕 -->
+        <button id="analyticsBtn" class="btn btn-icon" title="專注數據與圖表">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </button>
+
+        <!-- 設定按鈕 -->
+        <button id="settingsBtn" class="btn btn-icon" title="設定">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主要內容區 Main Section -->
+    <main class="main-content">
+      <!-- 左側/上方：番茄鐘核心區 -->
+      <section class="timer-section card">
+        <!-- 模式切換頁籤 Mode Tabs -->
+        <nav class="mode-tabs">
+          <button class="mode-tab active" data-mode="work">🎯 專注工作</button>
+          <button class="mode-tab" data-mode="shortBreak">☕ 短暫休息</button>
+          <button class="mode-tab" data-mode="longBreak">🌴 長時間休息</button>
+        </nav>
+
+        <!-- 動態 SVG 圓環倒數計時器 -->
+        <div class="timer-display-wrapper">
+          <svg class="timer-ring-svg" viewBox="0 0 300 300">
+            <circle class="ring-bg" cx="150" cy="150" r="135" />
+            <circle id="timerProgressRing" class="ring-progress" cx="150" cy="150" r="135" />
+          </svg>
+          
+          <div class="timer-inner">
+            <div id="timeText" class="time-text">25:00</div>
+            <div id="activeTaskLabel" class="active-task-label">選擇或新增任務以開始專注</div>
+            <div id="cycleIndicator" class="cycle-indicator">第 1 / 4 個番茄循環</div>
+          </div>
+        </div>
+
+        <!-- 計時器控制按鈕群 -->
+        <div class="timer-controls">
+          <button id="resetTimerBtn" class="btn btn-secondary btn-icon-text" title="重置計時">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+            重置
+          </button>
+
+          <button id="startPauseBtn" class="btn btn-primary btn-large">
+            <svg id="playPauseIcon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span id="startPauseText">開始專注</span>
+          </button>
+
+          <button id="skipTimerBtn" class="btn btn-secondary btn-icon-text" title="跳過當前階段">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 4 15 12 5 20 5 4"></polygon>
+              <line x1="19" y1="5" x2="19" y2="19"></line>
+            </svg>
+            跳過
+          </button>
+        </div>
+
+        <!-- 離線 Web Audio 白噪音與雙耳拍頻控制器 -->
+        <div class="ambient-sound-section">
+          <div class="ambient-header">
+            <span class="ambient-title">🎧 離線環境音 & 雙耳拍頻 (Binaural Beats)</span>
+            <span id="currentAmbientLabel" class="ambient-status">已關閉</span>
+          </div>
+
+          <!-- 白噪音切換 -->
+          <div class="ambient-controls">
+            <button class="ambient-btn active" data-sound="none">🔇 無環境音</button>
+            <button class="ambient-btn" data-sound="rain">🌧️ 靜謐雨聲</button>
+            <button class="ambient-btn" data-sound="focus">🧠 粉紅專注波</button>
+            <button class="ambient-btn" data-sound="waves">🌊 澎湃海浪</button>
+          </div>
+          <div class="ambient-volume-slider">
+            <span class="slider-icon">🔊 音量</span>
+            <input type="range" id="ambientVolume" min="0" max="100" value="40" title="環境音音量">
+          </div>
+
+          <hr class="divider" style="margin: 12px 0;">
+
+          <!-- 專業雙耳拍頻腦波產生器 (Binaural Beats Studio) -->
+          <div class="binaural-beats-studio">
+            <div class="binaural-header">
+              <div class="binaural-title-group">
+                <span class="binaural-title">🧠 雙耳拍頻 (Binaural Beats) 音訊發聲引擎</span>
+                <span class="headphone-tag">🎧 必須配戴雙聲道耳機</span>
+              </div>
+              <label class="switch-toggle" title="開啟/關閉雙耳拍頻">
+                <input type="checkbox" id="binauralToggle">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <!-- 5 大情境封裝模式卡片 (預設高亮 Alpha 10Hz 專注) -->
+            <div class="binaural-modes-grid">
+              <button class="binaural-card active" data-wave="alpha">
+                <div class="card-icon">🧠</div>
+                <div class="card-info">
+                  <div class="card-title">Alpha (α) 平靜專注</div>
+                  <div class="card-hz">拍頻 10 Hz | 身心平靜、高效學習（預設最佳專注頻率）</div>
+                </div>
+              </button>
+
+              <button class="binaural-card" data-wave="beta">
+                <div class="card-icon">⚡</div>
+                <div class="card-info">
+                  <div class="card-title">Beta (β) 高效思考</div>
+                  <div class="card-hz">拍頻 20 Hz | 邏輯分析、高度警覺</div>
+                </div>
+              </button>
+
+              <button class="binaural-card" data-wave="gamma">
+                <div class="card-icon">🚀</div>
+                <div class="card-info">
+                  <div class="card-title">Gamma (γ) 極限記憶</div>
+                  <div class="card-hz">拍頻 40 Hz | 記憶整合、敏捷衝刺</div>
+                </div>
+              </button>
+
+              <button class="binaural-card" data-wave="theta">
+                <div class="card-icon">🎨</div>
+                <div class="card-info">
+                  <div class="card-title">Theta (θ) 靈感冥想</div>
+                  <div class="card-hz">拍頻 6 Hz | 創意發想、深層放鬆</div>
+                </div>
+              </button>
+
+              <button class="binaural-card" data-wave="delta">
+                <div class="card-icon">🧘</div>
+                <div class="card-info">
+                  <div class="card-title">Delta (δ) 睡眠修復</div>
+                  <div class="card-hz">拍頻 2 Hz | 減壓紓緩、身體休養</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- 演算法與聽覺感官卡片 -->
+            <div class="binaural-sensory-panel">
+              <div class="sensory-row">
+                <span class="sensory-label">🎛️ 物理演算法參數：</span>
+                <span id="binauralMathText" class="sensory-value">載波 200Hz | 左耳 195.0Hz / 右耳 205.0Hz</span>
+              </div>
+              <div class="sensory-row">
+                <span class="sensory-label">🌊 感知音高與聽調：</span>
+                <span id="binauralPerceivedText" class="sensory-value">感知音高 200Hz（呈現 10Hz 脈搏起伏與頭腦中央相位移動感）</span>
+              </div>
+              <div class="sensory-row">
+                <span class="sensory-label">⚖️ 聲學防疲勞黃金比率：</span>
+                <span id="binauralRatioText" class="sensory-value">純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）</span>
+              </div>
+            </div>
+
+            <!-- 音量與防刺耳遮罩設定 -->
+            <div class="binaural-controls-row">
+              <label class="checkbox-label comfort-masking-label" title="開啟柔和自然粉紅噪音，避免單純正弦波造成聽覺疲勞">
+                <input type="checkbox" id="comfortMaskingToggle" checked>
+                <span>🌿 開啟防聽覺疲勞柔和遮罩 (Pink Noise)</span>
+              </label>
+
+              <div class="binaural-volume-box">
+                <span class="vol-label">拍頻音量: <span id="binauralVolVal">25</span>%</span>
+                <input type="range" id="binauralVolSlider" min="0" max="100" value="25" title="雙耳拍頻主音量">
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider" style="margin: 12px 0;">
+
+          <!-- 音效定時關閉倒數計時器 (精確到秒) -->
+          <div class="sound-sleep-timer-studio">
+            <div class="sleep-timer-header">
+              <span class="sleep-timer-title">⏳ 音效定時自動關閉 (睡眠/冥想定時)</span>
+              <span id="sleepTimerStatusBadge" class="sleep-timer-badge">未設定</span>
+            </div>
+
+            <!-- 時間設定區 (精確到分與秒) -->
+            <div class="sleep-timer-inputs">
+              <div class="time-input-group">
+                <input type="number" id="sleepTimerMin" min="0" max="180" value="15" placeholder="分" title="分鐘">
+                <span class="unit-label">分</span>
+              </div>
+              <div class="time-input-group">
+                <input type="number" id="sleepTimerSec" min="0" max="59" value="0" placeholder="秒" title="秒數">
+                <span class="unit-label">秒</span>
+              </div>
+
+              <!-- 快速預設鍵 -->
+              <div class="sleep-preset-chips">
+                <button class="preset-chip" data-min="5" data-sec="0">5分</button>
+                <button class="preset-chip" data-min="15" data-sec="0">15分</button>
+                <button class="preset-chip" data-min="30" data-sec="0">30分</button>
+                <button class="preset-chip" data-min="60" data-sec="0">60分</button>
+              </div>
+            </div>
+
+            <!-- 控制按鈕與即時倒數顯示 -->
+            <div class="sleep-timer-actions">
+              <button id="startSleepTimerBtn" class="btn btn-secondary btn-small">▶️ 開始定時倒數</button>
+              <button id="cancelSleepTimerBtn" class="btn btn-secondary btn-small hidden">🛑 取消定時</button>
+              <div id="sleepTimerCountdownText" class="sleep-countdown-text hidden">倒數剩餘：15:00</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右側/下方：任務管理區 -->
+      <section class="tasks-section card">
+        <div class="section-header">
+          <h2>📋 專注任務清單</h2>
+          <button id="addTaskBtn" class="btn btn-small btn-primary">
+            <span>+</span> 新增任務
+          </button>
+        </div>
+
+        <!-- 標籤篩選列 -->
+        <div class="task-filters">
+          <button class="filter-chip active" data-filter="all">全部</button>
+          <button class="filter-chip" data-filter="work">💻 工作</button>
+          <button class="filter-chip" data-filter="study">📚 學習</button>
+          <button class="filter-chip" data-filter="design">🎨 設計</button>
+          <button class="filter-chip" data-filter="health">🏃 健康/生活</button>
+        </div>
+
+        <!-- 任務列表容器 -->
+        <div id="taskList" class="task-list">
+          <!-- 任務項目將由 JavaScript 動態渲染 -->
+        </div>
+
+        <!-- 每日目標進度 -->
+        <div class="daily-goal-card">
+          <div class="goal-info">
+            <span>🎯 今日番茄目標達成率</span>
+            <span id="dailyGoalText">0 / 8 🍅</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="dailyGoalProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 新增 / 編輯任務 彈窗 Modal -->
+    <div id="taskModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="taskModalTitle">新增專注任務</h3>
+          <button id="closeTaskModalBtn" class="btn-close">&times;</button>
+        </div>
+        <form id="taskForm" class="modal-body">
+          <input type="hidden" id="taskIdInput">
+          
+          <div class="form-group">
+            <label for="taskTitleInput">任務名稱 *</label>
+            <input type="text" id="taskTitleInput" placeholder="要做些什麼？例如：撰寫專案報告..." required autofocus>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskEstInput">預估番茄數 🍅</label>
+              <input type="number" id="taskEstInput" min="1" max="20" value="2" required>
+            </div>
+
+            <div class="form-group">
+              <label for="taskCategorySelect">專案標籤</label>
+              <select id="taskCategorySelect">
+                <option value="work">💻 工作</option>
+                <option value="study">📚 學習</option>
+                <option value="design">🎨 設計</option>
+                <option value="health">🏃 健康/生活</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskPrioritySelect">優先級</label>
+            <select id="taskPrioritySelect">
+              <option value="high">🔴 高優先</option>
+              <option value="medium" selected>🟡 中優先</option>
+              <option value="low">🟢 低優先</option>
+            </select>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="cancelTaskModalBtn" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary">儲存任務</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 統計圖表 彈窗 Modal -->
+    <div id="analyticsModal" class="modal-backdrop hidden">
+      <div class="modal-card modal-large">
+        <div class="modal-header">
+          <h3>📊 專注數據統計與分析</h3>
+          <button id="closeAnalyticsModalBtn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body analytics-grid">
+          <!-- 數據概要卡片 -->
+          <div class="stat-summary-cards">
+            <div class="stat-card">
+              <div class="stat-value" id="statTodayTime">0 <span>分鐘</span></div>
+              <div class="stat-label">今日累積專注</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statTodayCount">0 <span>個</span></div>
+              <div class="stat-label">今日完成番茄</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statTotalCount">0 <span>個</span></div>
+              <div class="stat-label">歷史總完成番茄</div>
+            </div>
+          </div>
+
+          <!-- 圖表區 -->
+          <div class="chart-container">
+            <h4>📅 過去 7 天專注時數趨勢 (分鐘)</h4>
+            <div class="chart-wrapper">
+              <canvas id="trendChartCanvas" width="500" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <h4>🏷️ 專案標籤專注時間佔比</h4>
+            <div class="chart-wrapper">
+              <canvas id="categoryChartCanvas" width="500" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定 彈窗 Modal -->
+    <div id="settingsModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ 系統設定</h3>
+          <button id="closeSettingsModalBtn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body form-grid">
+          <h4>⏱️ 時間設定 (分鐘)</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="settingWorkTime">專注工作</label>
+              <input type="number" id="settingWorkTime" min="1" max="120" value="25">
+            </div>
+            <div class="form-group">
+              <label for="settingShortBreak">短暫休息</label>
+              <input type="number" id="settingShortBreak" min="1" max="60" value="5">
+            </div>
+            <div class="form-group">
+              <label for="settingLongBreak">長時間休息</label>
+              <input type="number" id="settingLongBreak" min="1" max="60" value="15">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="settingDailyGoal">每日目標番茄數 🍅</label>
+            <input type="number" id="settingDailyGoal" min="1" max="50" value="8">
+          </div>
+
+          <hr class="divider">
+
+          <h4>🔔 提醒與自動化</h4>
+          <div class="form-checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingAutoStartBreaks">
+              自動開始休息
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingAutoStartWork">
+              自動開始下一次專注
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="settingSoundSelect">提醒音效</label>
+            <select id="settingSoundSelect">
+              <option value="zen">🧘 禪音磬聲 (Zen Gong)</option>
+              <option value="marimba">🪵 軟木琴 (Marimba)</option>
+              <option value="digital">🤖 電子嗶聲 (Beep)</option>
+              <option value="chime">🔔 溫柔提醒 (Chime)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <button id="testSoundBtn" class="btn btn-secondary btn-small">🔊 測試音效</button>
+            <button id="requestNotificationBtn" class="btn btn-secondary btn-small">🔔 啟用桌面系統通知</button>
+          </div>
+
+          <hr class="divider">
+
+          <h4>💾 資料備份與還原</h4>
+          <div class="form-row">
+            <button id="exportDataBtn" class="btn btn-secondary">📥 匯出資料 (JSON)</button>
+            <label class="btn btn-secondary file-upload-label">
+              📤 匯入資料
+              <input type="file" id="importDataInput" accept=".json" class="hidden-input">
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="saveSettingsBtn" class="btn btn-primary">儲存設定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全螢幕禪模式 Overlayer -->
+    <div id="zenOverlay" class="zen-overlay hidden">
+      <button id="exitZenBtn" class="btn btn-icon btn-zen-exit" title="退出禪模式 (Esc)">
+        &times; 退出禪模式
+      </button>
+      <div class="zen-content">
+        <div id="zenTaskTitle" class="zen-task-title">專注中</div>
+        <div id="zenTimeText" class="zen-time-text">25:00</div>
+        <div class="zen-controls">
+          <button id="zenStartPauseBtn" class="btn btn-primary btn-large">暫停</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
