@@ -84,27 +84,7 @@
 
     connectOutput(node) {
       if (!this.ctx || !node) return;
-
-      // Always connect to default speakers
       try { node.connect(this.ctx.destination); } catch (e) {}
-
-      // MediaStream piping for iOS Safari Lock Screen Background Audio
-      if (!this.mediaStreamDest && (this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination)) {
-        try {
-          const createDest = this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination;
-          this.mediaStreamDest = createDest.call(this.ctx);
-          
-          const silentAudio = document.getElementById('silentAudioLoop');
-          if (silentAudio && this.mediaStreamDest.stream) {
-            silentAudio.srcObject = this.mediaStreamDest.stream;
-            silentAudio.play().catch(() => {});
-          }
-        } catch (e) {}
-      }
-
-      if (this.mediaStreamDest) {
-        try { node.connect(this.mediaStreamDest); } catch (e) {}
-      }
     }
 
     // --- iOS Safari Lock Screen Background Audio Keeper ---
