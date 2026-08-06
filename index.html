@@ -34,7 +34,7 @@
     <div class="tool-grid">
       <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
       <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
-        <div class="tool-card-badge">v0.8.7-beta</div>
+        <div class="tool-card-badge">v0.8.8-beta</div>
         <div class="tool-card-icon">🍅</div>
         <div class="tool-card-info">
           <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> v0.8.7-beta
+            <span class="beta-pulse"></span> v0.8.8-beta
           </button>
         </div>
       
@@ -187,12 +187,29 @@
           <div class="ambient-controls">
             <button class="ambient-btn active" data-sound="none">🔇 無環境音</button>
             <button class="ambient-btn" data-sound="rain">🌧️ 靜謐雨聲</button>
+            <button class="ambient-btn" data-sound="forestRain" title="深層棕色噪音與森林降雨 (重現 YT p5BwXeU0Z1c 聲學品質)">🌲 森林雨與深棕音</button>
             <button class="ambient-btn" data-sound="focus">🧠 粉紅專注波</button>
             <button class="ambient-btn" data-sound="waves">🌊 澎湃海浪</button>
           </div>
           <div class="ambient-volume-slider">
             <span class="slider-icon">🔊 音量</span>
             <input type="range" id="ambientVolume" min="0" max="100" value="40" title="環境音音量">
+          </div>
+
+          <!-- YouTube 客製音軌載入面板 -->
+          <div id="ytTrackBox" class="yt-track-box">
+            <div class="yt-header">
+              <span class="yt-title">📺 YouTube 客製音軌/遮罩背景音</span>
+              <span id="ytStatusBadge" class="yt-badge">預設：DEEP BROWN NOISE & FOREST RAIN</span>
+            </div>
+            <div class="yt-input-group">
+              <input type="text" id="ytUrlInput" class="yt-url-input" value="https://youtu.be/p5BwXeU0Z1c" placeholder="貼上 YouTube 網址 (如 https://youtu.be/p5BwXeU0Z1c)">
+              <button id="loadYtBtn" class="btn btn-secondary btn-small">🔗 載入 YT 音軌</button>
+              <button id="toggleYtPlayerBtn" class="btn btn-secondary btn-small hidden">📺 展開/收合影片</button>
+            </div>
+            <div id="ytPlayerContainer" class="yt-player-container hidden">
+              <div id="ytIframeWrapper" class="yt-iframe-wrapper"></div>
+            </div>
           </div>
 
           <hr class="divider" style="margin: 12px 0;">
@@ -276,6 +293,15 @@
                   <button class="ds-duration-chip" data-mins="45">45分</button>
                   <button class="ds-duration-chip" data-mins="60">60分</button>
                 </div>
+
+                <!-- 助眠遮罩背景音選擇 (棕色深海雷雨 / 靜謐森林雨 / YouTube客製音軌) -->
+                <div class="ds-mask-selector-row">
+                  <span class="ds-label">🎧 助眠遮罩音：</span>
+                  <button class="ds-mask-chip active" data-mask="brown" title="棕色深海雷雨音 (80% 深度遮罩)">🌊 棕色深海雷雨</button>
+                  <button class="ds-mask-chip" data-mask="forestRain" title="靜謐森林雨聲 (YT p5BwXeU0Z1c 雙層重現)">🌲 靜謐森林雨</button>
+                  <button class="ds-mask-chip" data-mask="youtube" title="搭配上方 YouTube 客製音軌/影片">📺 YouTube 音軌</button>
+                </div>
+
                 <div class="ds-action-buttons">
                   <button id="dsStartPauseBtn" class="btn btn-primary ds-start-btn">▶️ 開始深層助眠引導</button>
                   <button id="dsResetBtn" class="btn btn-secondary ds-reset-btn" title="中斷並重置助眠引導">🛑 中斷重置</button>
@@ -598,8 +624,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.7-beta</div>
-            <div class="v-desc">本版本全新升級「MyToolList Studio」獨立助眠實驗室，新增 4 大 NREM 深層慢波助眠降頻演算法、獨立定時控制、已過/剩餘時間即時指標、15秒/1分鐘快速測試與中斷重置機制。</div>
+            <div class="v-num">v0.8.8-beta</div>
+            <div class="v-desc">本版本全新加入 YouTube 客製音軌/背景遮罩載入面板、100% 離線靜謐森林雨與深棕音（YT p5BwXeU0Z1c 聲學重現），並於 NREM 助眠實驗室新增 3 大助眠遮罩音軌切換晶片（棕色深海雷雨 / 靜謐森林雨 / YouTube 客製音軌）。</div>
           </div>
 
           <hr class="divider">
@@ -616,7 +642,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.8.7</strong>：NREM 深層慢波助眠獨立實驗室、15s/1m 測試、中斷重置與全站 DOM 安全防護。</span>
+              <span class="rule-text"><strong>v0.8.8</strong>：YouTube 客製音軌載入、森林雨深棕音離線合成、NREM 助眠 3 大遮罩音軌切換。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>

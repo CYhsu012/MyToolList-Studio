@@ -328,6 +328,51 @@
         lfo.start();
         brownNoise.start();
         this.ambientSourceNodes.push(brownNoise, lfo);
+      } else if (type === 'forestRain') {
+        // Deep Brown Noise + Forest Rain Trickle (YouTube p5BwXeU0Z1c Acoustic Reproduction)
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          output[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = output[i];
+          output[i] *= 3.2;
+        }
+        const brownNoise = this.ctx.createBufferSource();
+        brownNoise.buffer = noiseBuffer;
+        brownNoise.loop = true;
+
+        const brownFilter = this.ctx.createBiquadFilter();
+        brownFilter.type = 'lowpass';
+        brownFilter.frequency.setValueAtTime(320, this.ctx.currentTime);
+
+        brownNoise.connect(brownFilter);
+        brownFilter.connect(this.ambientGainNode);
+
+        // Raindrop Trickle Pink Layer
+        const rainBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const rainData = rainBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          rainData[i] = (b0 + b1 + b2 + white * 0.5362) * 0.08;
+        }
+        const rainSource = this.ctx.createBufferSource();
+        rainSource.buffer = rainBuffer;
+        rainSource.loop = true;
+
+        const rainFilter = this.ctx.createBiquadFilter();
+        rainFilter.type = 'highpass';
+        rainFilter.frequency.setValueAtTime(900, this.ctx.currentTime);
+
+        rainSource.connect(rainFilter);
+        rainFilter.connect(this.ambientGainNode);
+
+        brownNoise.start();
+        rainSource.start();
+        this.ambientSourceNodes.push(brownNoise, rainSource);
       }
     }
 
@@ -551,6 +596,7 @@
     deepSleepStudioBlock: document.getElementById('deepSleepStudioBlock'),
     dsStatusBadge: document.getElementById('dsStatusBadge'),
     dsDurationChips: document.querySelectorAll('.ds-duration-chip'),
+    dsMaskChips: document.querySelectorAll('.ds-mask-chip'),
     dsStartPauseBtn: document.getElementById('dsStartPauseBtn'),
     dsResetBtn: document.getElementById('dsResetBtn'),
     dsRunInfoPanel: document.getElementById('dsRunInfoPanel'),
@@ -579,6 +625,12 @@
     ambientBtns: document.querySelectorAll('.ambient-btn'),
     ambientVolume: document.getElementById('ambientVolume'),
     currentAmbientLabel: document.getElementById('currentAmbientLabel'),
+    ytUrlInput: document.getElementById('ytUrlInput'),
+    loadYtBtn: document.getElementById('loadYtBtn'),
+    toggleYtPlayerBtn: document.getElementById('toggleYtPlayerBtn'),
+    ytPlayerContainer: document.getElementById('ytPlayerContainer'),
+    ytIframeWrapper: document.getElementById('ytIframeWrapper'),
+    ytStatusBadge: document.getElementById('ytStatusBadge'),
 
     // Binaural Beats Studio UI
     binauralToggle: document.getElementById('binauralToggle'),
@@ -693,7 +745,8 @@
     paused: false,
     durationMins: 30,
     elapsedSec: 0,
-    intervalId: null
+    intervalId: null,
+    maskingType: 'brown' // 'brown' | 'forestRain' | 'youtube'
   };
 
   function checkAndUpdateMiniWidget() {
@@ -1473,6 +1526,41 @@
       audioEngine.setVolume(e.target.value);
     });
 
+    // YouTube Custom Audio Track Embed Logic
+    function extractYouTubeId(url) {
+      if (!url) return 'p5BwXeU0Z1c';
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2] && match[2].length === 11) ? match[2] : 'p5BwXeU0Z1c';
+    }
+
+    DOM.loadYtBtn?.addEventListener('click', () => {
+      const url = DOM.ytUrlInput?.value.trim() || 'https://youtu.be/p5BwXeU0Z1c';
+      const videoId = extractYouTubeId(url);
+      if (videoId) {
+        if (DOM.ytIframeWrapper) {
+          DOM.ytIframeWrapper.innerHTML = `
+            <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0" 
+                    title="YouTube Audio Track" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+            </iframe>
+          `;
+        }
+        if (DOM.ytPlayerContainer) DOM.ytPlayerContainer.classList.remove('hidden');
+        if (DOM.toggleYtPlayerBtn) DOM.toggleYtPlayerBtn.classList.remove('hidden');
+        if (DOM.ytStatusBadge) DOM.ytStatusBadge.textContent = `▶️ 音軌已載入 (ID: ${videoId})`;
+      } else {
+        alert('請輸入有效的 YouTube 網址！');
+      }
+    });
+
+    DOM.toggleYtPlayerBtn?.addEventListener('click', () => {
+      if (DOM.ytPlayerContainer) {
+        DOM.ytPlayerContainer.classList.toggle('hidden');
+      }
+    });
+
     // Dedicated Binaural Beats Studio Logic (Strict Physical & Acoustic Algorithm)
     function startDeepSleepStudioEngine() {
       audioEngine.initCtx();
@@ -1502,8 +1590,11 @@
 
       const totalSec = Math.round(deepSleepState.durationMins * 60);
 
-      // 120Hz Low Carrier + Initial 8.0Hz Alpha + 80% Brown Noise Masking
-      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, 'brown');
+      // 120Hz Low Carrier + Initial 8.0Hz Alpha + Selected Masking Noise (Brown Noise, Forest Rain, or YouTube)
+      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, deepSleepState.maskingType || 'brown');
+      if (deepSleepState.maskingType === 'youtube') {
+        DOM.loadYtBtn?.click();
+      }
 
       if (DOM.dsRunInfoPanel) DOM.dsRunInfoPanel.classList.remove('hidden');
       if (DOM.dsStatusBadge) {
@@ -1694,6 +1785,18 @@
         if (DOM.dsElapsedTimeText) DOM.dsElapsedTimeText.textContent = '00:00';
         if (DOM.dsRemainingTimeText) DOM.dsRemainingTimeText.textContent = `${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
         if (DOM.dsLiveHzText) DOM.dsLiveHzText.textContent = '8.0 Hz';
+      });
+    });
+
+    DOM.dsMaskChips?.forEach(chip => {
+      chip.addEventListener('click', () => {
+        DOM.dsMaskChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        deepSleepState.maskingType = chip.dataset.mask || 'brown';
+        if (deepSleepState.running) {
+          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, deepSleepState.maskingType);
+          if (deepSleepState.maskingType === 'youtube') DOM.loadYtBtn?.click();
+        }
       });
     });
 
