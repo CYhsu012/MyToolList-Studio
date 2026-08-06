@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PomodoroFlow | 全功能極致專注番茄鐘</title>
-  <meta name="description" content="全功能現代化 Local Web 番茄鐘，整合任務管理、統計圖表、離線 Web Audio 白噪音與禪模式">
+  <title>MyToolList Studio | 個人開發工具集合 (PomodoroFlow & 雙耳拍頻)</title>
+  <meta name="description" content="個人開發者多功能 Web 工具箱，整合 PomodoroFlow 番茄鐘、雙耳拍頻 (Binaural Beats)、NREM 慢波深眠引導實驗室與未來實用工具">
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@
     <div class="tool-grid">
       <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
       <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
-        <div class="tool-card-badge">v0.8.6-beta</div>
+        <div class="tool-card-badge">v0.8.7-beta</div>
         <div class="tool-card-icon">🍅</div>
         <div class="tool-card-info">
           <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> v0.8.6-beta
+            <span class="beta-pulse"></span> v0.8.7-beta
           </button>
         </div>
       
@@ -248,9 +248,73 @@
                 <div class="card-icon">🧘</div>
                 <div class="card-info">
                   <div class="card-title">Delta (δ) 睡眠修復</div>
-                  <div class="card-hz">拍頻 2 Hz | 減壓紓緩、身體休養</div>
+                  <div class="card-hz">拍頻 2 Hz | 固定 2Hz 慢波、身體休養</div>
                 </div>
               </button>
+            </div>
+
+            <!-- 🌙 NREM 深層慢波助眠獨立實驗室方塊 (獨立控制與獨立計時器) -->
+            <div id="deepSleepStudioBlock" class="deep-sleep-studio-card">
+              <div class="ds-studio-header">
+                <div class="ds-title-group">
+                  <span class="ds-icon">🌙</span>
+                  <div>
+                    <h3 class="ds-main-title">NREM 深層慢波助眠實驗室</h3>
+                    <p class="ds-subtitle">20分鐘漸進式動態降頻 (8Hz➔5Hz➔2Hz) | 120Hz低載波 | 80% 棕色深海雷雨音</p>
+                  </div>
+                </div>
+                <span id="dsStatusBadge" class="ds-status-badge">未開始</span>
+              </div>
+
+              <!-- 獨立控制與時長選擇列 -->
+              <div class="ds-controls-bar">
+                <div class="ds-duration-selector">
+                  <span class="ds-label">助眠定時：</span>
+                  <button class="ds-duration-chip" data-mins="0.25">⚡ 15秒測試</button>
+                  <button class="ds-duration-chip" data-mins="1">🧪 1分測試</button>
+                  <button class="ds-duration-chip active" data-mins="30">30分</button>
+                  <button class="ds-duration-chip" data-mins="45">45分</button>
+                  <button class="ds-duration-chip" data-mins="60">60分</button>
+                </div>
+                <div class="ds-action-buttons">
+                  <button id="dsStartPauseBtn" class="btn btn-primary ds-start-btn">▶️ 開始深層助眠引導</button>
+                  <button id="dsResetBtn" class="btn btn-secondary ds-reset-btn" title="中斷並重置助眠引導">🛑 中斷重置</button>
+                </div>
+              </div>
+
+              <!-- 執行中動態資訊與獨立計時面板 (預設隱藏) -->
+              <div id="dsRunInfoPanel" class="ds-run-info-panel hidden">
+                <!-- 時間數據指標 (已過時間 / 剩餘時間 / 即時腦波) -->
+                <div class="ds-timer-metrics">
+                  <div class="ds-metric-box">
+                    <span class="m-label">⏱️ 已引導時間</span>
+                    <span id="dsElapsedTimeText" class="m-value">00:00</span>
+                  </div>
+                  <div class="ds-metric-box">
+                    <span class="m-label">⏳ 剩餘總時間</span>
+                    <span id="dsRemainingTimeText" class="m-value">30:00</span>
+                  </div>
+                  <div class="ds-metric-box">
+                    <span class="m-label">📉 當前腦波拍頻</span>
+                    <span id="dsLiveHzText" class="m-value highlight">8.0 Hz</span>
+                  </div>
+                </div>
+
+                <!-- 階段降頻進度圓環與階段亮燈 -->
+                <div class="ds-curve-bar-container">
+                  <div id="dsPhaseProgressLine" class="ds-phase-progress-line" style="width: 0%;"></div>
+                  <div class="ds-curve-steps">
+                    <span id="dsStepAlpha" class="ds-step active">0-5m 8Hz (Alpha放鬆)</span>
+                    <span id="dsStepTheta" class="ds-step">5-12m 5Hz (Theta昏眠)</span>
+                    <span id="dsStepDelta" class="ds-step">12-20m 2Hz (Delta深眠)</span>
+                    <span id="dsStepSustain" class="ds-step">>20m 鎖定+3m淡出</span>
+                  </div>
+                </div>
+
+                <div class="ds-acoustic-note">
+                  🔊 120Hz 低音基頻 (活化副交感神經) | 🌊 棕色深海雷雨音 (80% 遮罩) | ⌛ 最後 3 分鐘指數級淡出關閉
+                </div>
+              </div>
             </div>
 
             <!-- 演算法與聽覺感官卡片 -->
@@ -534,8 +598,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.6-beta</div>
-            <div class="v-desc">本版本新增「My Tool List」主選單介面、雙下角背景懸浮執行小方塊與即時圓環進度條，整合核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學黃金比例) 與 iOS 鎖屏背景保活。</div>
+            <div class="v-num">v0.8.7-beta</div>
+            <div class="v-desc">本版本全新升級「MyToolList Studio」獨立助眠實驗室，新增 4 大 NREM 深層慢波助眠降頻演算法、獨立定時控制、已過/剩餘時間即時指標、15秒/1分鐘快速測試與中斷重置機制。</div>
           </div>
 
           <hr class="divider">
@@ -552,7 +616,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.8.6</strong>：Bug 修復、行動端排版微調、演算法音量參數校正。</span>
+              <span class="rule-text"><strong>v0.8.7</strong>：NREM 深層慢波助眠獨立實驗室、15s/1m 測試、中斷重置與全站 DOM 安全防護。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>

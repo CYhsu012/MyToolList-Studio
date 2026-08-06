@@ -1012,6 +1012,240 @@ input:checked + .switch-slider:before {
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
+/* Standalone NREM Deep Sleep Studio Block */
+.deep-sleep-studio-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.95));
+  border: 1.5px solid #6366f1;
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(99, 102, 241, 0.25);
+  transition: var(--transition);
+}
+
+.ds-studio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.ds-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ds-icon {
+  font-size: 32px;
+  filter: drop-shadow(0 0 10px #818cf8);
+}
+
+.ds-main-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e0e7ff;
+}
+
+.ds-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.ds-status-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.ds-status-badge.running {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: #818cf8;
+  color: #c7d2fe;
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
+}
+
+.ds-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ds-duration-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.ds-duration-chip {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--bg-card-border);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ds-duration-chip:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.ds-duration-chip.active {
+  background: #4338ca;
+  border-color: #818cf8;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(129, 140, 248, 0.5);
+}
+
+.ds-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-start-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.5);
+  padding: 10px 22px;
+  font-size: 14px;
+}
+
+.ds-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.7);
+}
+
+.ds-reset-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  padding: 10px 18px;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ds-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fff;
+  border-color: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.ds-run-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  animation: fadeIn 0.4s ease;
+}
+
+.ds-timer-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.ds-metric-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.m-label {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.m-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e0e7ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-value.highlight {
+  color: #818cf8;
+}
+
+.ds-curve-bar-container {
+  position: relative;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  overflow: hidden;
+}
+
+.ds-phase-progress-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.3), rgba(129, 140, 248, 0.6));
+  transition: width 0.5s ease;
+  z-index: 1;
+}
+
+.ds-curve-steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  z-index: 2;
+  text-align: center;
+}
+
+.ds-step {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  padding: 4px 2px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.ds-step.active {
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+}
+
+.ds-acoustic-note {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+}
+
 .card-icon {
   font-size: 22px;
 }

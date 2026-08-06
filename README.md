@@ -1,9 +1,10 @@
-# 🍅 PomodoroFlow & 🧠 Binaural Beats Studio
+# 🛠️ MyToolList Studio (個人開發工具集合與專注聲學套件)
 
-> **全功能極致現代化 Local Web 番茄鐘與專業雙耳拍頻 (Binaural Beats) 音訊發聲系統**  
-> 整合任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
+> **個人開發者多功能 Web 工具箱與極致專注聲學 Studio**  
+> 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
+> 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.8.6--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.8.7--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -17,8 +18,8 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.8.6-beta`（公開開發測試版）  
-> **版本狀態**：新增 `My Tool List` 工具選單主介面、左右兩下角背景執行迷你動態 Widget 與即時進度條，整合核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學比) 與 iOS 鎖屏背景保活。
+> **當前版本號**：`v0.8.7-beta`（公開開發測試版）  
+> **版本狀態**：全新升級「MyToolList Studio」獨立助眠實驗室，新增 4 大 NREM 深層慢波助眠降頻演算法、獨立定時控制、已過/剩餘時間即時指標、15秒/1分鐘快速測試、中斷重置與全站 DOM 安全鏈式防護。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
@@ -48,12 +49,17 @@
   - **粉紅噪音遮罩音 (Pink Noise)：佔 75%**（通過 800Hz 溫暖低通濾波器包覆，**長時間聆聽 1~4 小時不耳疲勞、不刺耳**）。
 - **硬體獨立聲道隔離 (Hard Channel Separation)**：
   採用 Web Audio API `StereoPannerNode` 與 `ChannelMergerNode(2)` 獨立控制左右耳訊號，確保聲波必須在大腦兩側橄欖體（Superior Olivary Complex）進行相位整合。
-- **5 大情境封裝模式**：
+- **6 大情境封裝模式**：
   - 🧠 **Alpha (α) 平靜專注 (10 Hz 拍頻 - 預設選取)**：身心平靜、學習狀態、消除焦慮。
   - ⚡ **Beta (β) 高效思考 (20 Hz 拍頻)**：邏輯分析、程式開發、高度警覺。
   - 🚀 **Gamma (γ) 極限記憶 (40 Hz 拍頻)**：記憶整合、敏捷衝刺。
   - 🎨 **Theta (θ) 靈感冥想 (6 Hz 拍頻)**：創意發想、深度冥想。
-  - 🧘 **Delta (δ) 睡眠修復 (2 Hz 拍頻)**：減壓紓緩、身體休養、助眠。
+  - 🧘 **Delta (δ) 靜止慢波 (2 Hz 拍頻)**：身體休養、減壓紓緩。
+  - 🌙 **NREM 深層慢波助眠 (20 分鐘動態降頻演算法)**：
+    - **策略 1：20 分鐘動態降頻 (Frequency Sliding)**：`0-5m 8Hz (Alpha放鬆)` $\rightarrow$ `5-12m 5Hz (Theta昏眠)` $\rightarrow$ `12-20m 2Hz (Delta鎖定深眠)`。
+    - **策略 2：120 Hz 低載波基頻**：低沉安撫，活化副交感神經。
+    - **策略 3：80% 棕色深海雷雨音遮罩 (Brown Noise)**：$1/f^2$ 深層音能包覆，阻隔干擾。
+    - **策略 4：睡眠定時 3 分鐘指數級淡出 (Exponential Fade-Out)**：保護慢波睡眠週期，避免後半夜干擾。
 
 ### 3. ⏳ 音效定時自動關閉倒數計時器 (Sound Auto-Off Sleep Timer)
 - **精確到秒**：可自訂分鐘與秒數（如 `0分 30秒`），並附帶 `5分`、`15分`、`30分`、`60分` 快速預設鍵。

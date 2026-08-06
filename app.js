@@ -348,7 +348,7 @@
     }
 
     // --- Dedicated Binaural Beats Engine (Strict Physical & Acoustic Algorithm) ---
-    startBinauralBeats(baseFreq = 200, beatFreq = 10, volumePct = 25, enableMasking = true) {
+    startBinauralBeats(baseFreq = 200, beatFreq = 10, volumePct = 25, enableMasking = true, maskingType = 'pink') {
       this.stopBinauralBeats(0); // Synchronous immediate stop of previous nodes
       this.initCtx();
 
@@ -372,8 +372,6 @@
       beatToneGainNode.connect(this.binauralMasterGain);
 
       // Calculate Left & Right pure sine frequencies:
-      // f_left = base_freq - (beat_freq / 2.0)
-      // f_right = base_freq + (beat_freq / 2.0)
       const fLeft = baseFreq - (beatFreq / 2.0);
       const fRight = baseFreq + (beatFreq / 2.0);
 
@@ -406,26 +404,39 @@
         merger.connect(beatToneGainNode);
       }
 
-      // Anti-Fatigue Pink Noise Comfort Masking Layer (75% Golden Ratio)
+      // Comfort Masking Layer (Pink Noise or Brown Noise)
       if (enableMasking) {
         const bufferSize = this.ctx.sampleRate * 2;
-        const pinkBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = pinkBuffer.getChannelData(0);
-        let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          b0 = 0.99886 * b0 + white * 0.0555179;
-          b1 = 0.99332 * b1 + white * 0.0750759;
-          b2 = 0.96900 * b2 + white * 0.1538520;
-          b3 = 0.86650 * b3 + white * 0.3104856;
-          b4 = 0.55000 * b4 + white * 0.5329522;
-          b5 = -0.7616 * b5 - white * 0.0168980;
-          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.1;
-          b6 = white * 0.115926;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+
+        if (maskingType === 'brown') {
+          // Brown Noise (1/f^2 attenuation, deep ocean rumble)
+          let lastOutput = 0.0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            data[i] = (lastOutput + (0.02 * white)) / 1.02;
+            lastOutput = data[i];
+            data[i] *= 3.5;
+          }
+        } else {
+          // Pink Noise (1/f attenuation)
+          let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.1;
+            b6 = white * 0.115926;
+          }
         }
 
         this.binauralMaskingNoise = this.ctx.createBufferSource();
-        this.binauralMaskingNoise.buffer = pinkBuffer;
+        this.binauralMaskingNoise.buffer = noiseBuffer;
         this.binauralMaskingNoise.loop = true;
 
         const maskGainNode = this.ctx.createGain();
@@ -433,7 +444,7 @@
 
         const maskFilter = this.ctx.createBiquadFilter();
         maskFilter.type = 'lowpass';
-        maskFilter.frequency.setValueAtTime(800, now); // Warm 800Hz lowpass blanket
+        maskFilter.frequency.setValueAtTime(maskingType === 'brown' ? 450 : 800, now);
 
         this.binauralMaskingNoise.connect(maskFilter);
         maskFilter.connect(maskGainNode);
@@ -450,8 +461,23 @@
         const now = this.ctx.currentTime;
         const fLeft = baseFreq - (beatFreq / 2.0);
         const fRight = baseFreq + (beatFreq / 2.0);
-        this.binauralLeftOsc.frequency.setValueAtTime(fLeft, now);
-        this.binauralRightOsc.frequency.setValueAtTime(fRight, now);
+        this.binauralLeftOsc.frequency.linearRampToValueAtTime(fLeft, now + 0.5);
+        this.binauralRightOsc.frequency.linearRampToValueAtTime(fRight, now + 0.5);
+      }
+    }
+
+    fadeBinauralMasterGain(fadeSeconds = 180) {
+      if (this.ctx && this.binauralMasterGain) {
+        const now = this.ctx.currentTime;
+        try {
+          this.binauralMasterGain.gain.cancelScheduledValues(now);
+          this.binauralMasterGain.gain.setValueAtTime(Math.max(0.0001, this.binauralMasterGain.gain.value), now);
+          this.binauralMasterGain.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+        } catch (e) {
+          try {
+            this.binauralMasterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
+          } catch (err) {}
+        }
       }
     }
 
@@ -506,6 +532,7 @@
   // 3. UI Elements Selection
   // --------------------------------------------------------------------------
   const DOM = {
+    body: document.body,
     // Main Tool List & Navigation UI
     toolListView: document.getElementById('toolListView'),
     pomodoroAppView: document.getElementById('pomodoroAppView'),
@@ -521,6 +548,16 @@
     miniProgressPctText: document.getElementById('miniProgressPctText'),
     miniLeftTitleText: document.getElementById('miniLeftTitleText'),
     miniLeftAudioText: document.getElementById('miniLeftAudioText'),
+    deepSleepStudioBlock: document.getElementById('deepSleepStudioBlock'),
+    dsStatusBadge: document.getElementById('dsStatusBadge'),
+    dsDurationChips: document.querySelectorAll('.ds-duration-chip'),
+    dsStartPauseBtn: document.getElementById('dsStartPauseBtn'),
+    dsResetBtn: document.getElementById('dsResetBtn'),
+    dsRunInfoPanel: document.getElementById('dsRunInfoPanel'),
+    dsElapsedTimeText: document.getElementById('dsElapsedTimeText'),
+    dsRemainingTimeText: document.getElementById('dsRemainingTimeText'),
+    dsLiveHzText: document.getElementById('dsLiveHzText'),
+    dsPhaseProgressLine: document.getElementById('dsPhaseProgressLine'),
     timeText: document.getElementById('timeText'),
     activeTaskLabel: document.getElementById('activeTaskLabel'),
     cycleIndicator: document.getElementById('cycleIndicator'),
@@ -633,11 +670,37 @@
     }
   }
 
+  // Dedicated Binaural Beats & Deep Sleep Studio State
+  const wavePresets = {
+    alpha: { deltaF: 10, name: 'Alpha (α)', label: '平靜專注、身心平靜、學習狀態' },
+    beta: { deltaF: 20, name: 'Beta (β)', label: '高效思考、邏輯分析、高度警覺' },
+    gamma: { deltaF: 40, name: 'Gamma (γ)', label: '極限超頻、記憶整合、資訊速處理' },
+    theta: { deltaF: 6, name: 'Theta (θ)', label: '靈感發想、深度冥想、直覺創想' },
+    delta: { deltaF: 2, name: 'Delta (δ)', label: '身體修復、深層放鬆、緩解失眠' },
+    deepSleep: { deltaF: 8, name: 'NREM 慢波深眠', label: '20分鐘動態降頻演算法 (8Hz ➔ 5Hz ➔ 2Hz) + 120Hz低載波與棕色噪音' }
+  };
+
+  let binauralState = {
+    enabled: false,
+    waveMode: 'alpha',
+    baseFreq: 200, // Carrier Frequency (200 Hz optimal)
+    volume: 25,
+    comfortMasking: true
+  };
+
+  let deepSleepState = {
+    running: false,
+    paused: false,
+    durationMins: 30,
+    elapsedSec: 0,
+    intervalId: null
+  };
+
   function checkAndUpdateMiniWidget() {
     if (activeView !== 'toolList') return;
 
     const isTimerActive = timerState === 'running' || timerState === 'paused';
-    const isBinauralActive = binauralState && binauralState.enabled;
+    const isBinauralActive = (binauralState && binauralState.enabled) || (deepSleepState && deepSleepState.running);
     const isAmbientActive = audioEngine && audioEngine.currentAmbient !== 'none';
 
     if (isTimerActive || isBinauralActive || isAmbientActive) {
@@ -653,7 +716,13 @@
   function updateMiniWidgetUI() {
     // 1. Update Right Mini Floating Widget (Quick Controls)
     if (DOM.miniWidgetStatusText) {
-      if (timerState === 'running' || timerState === 'paused') {
+      if (deepSleepState && deepSleepState.running) {
+        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🌙';
+        const remText = DOM.dsRemainingTimeText ? DOM.dsRemainingTimeText.textContent : '';
+        DOM.miniWidgetStatusText.textContent = `🌙 助眠剩餘 ${remText}`;
+        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = deepSleepState.paused ? '已暫停' : 'NREM 慢波降頻中';
+        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = deepSleepState.paused ? '▶️' : '⏸️';
+      } else if (timerState === 'running' || timerState === 'paused') {
         const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
         if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = timerMode === 'work' ? '🍅' : '☕';
         DOM.miniWidgetStatusText.textContent = `${modeLabel} ${formatTime(secondsLeft)}`;
@@ -674,7 +743,14 @@
     }
 
     // 2. Update Left Mini Floating Bar (Progress % & Sound Summary)
-    const progressPct = totalSeconds > 0 ? Math.min(100, Math.max(0, Math.round(((totalSeconds - secondsLeft) / totalSeconds) * 100))) : 0;
+    let progressPct = 0;
+    if (deepSleepState && deepSleepState.running) {
+      const totalSec = deepSleepState.durationMins * 60;
+      progressPct = totalSec > 0 ? Math.min(100, Math.max(0, Math.round((deepSleepState.elapsedSec / totalSec) * 100))) : 0;
+    } else {
+      progressPct = totalSeconds > 0 ? Math.min(100, Math.max(0, Math.round(((totalSeconds - secondsLeft) / totalSeconds) * 100))) : 0;
+    }
+
     if (DOM.miniRingProgress) {
       DOM.miniRingProgress.setAttribute('stroke-dasharray', `${progressPct}, 100`);
     }
@@ -683,12 +759,20 @@
     }
 
     if (DOM.miniLeftTitleText) {
-      const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
-      DOM.miniLeftTitleText.textContent = `${modeLabel} ${formatTime(secondsLeft)} (${progressPct}%)`;
+      if (deepSleepState && deepSleepState.running) {
+        const remText = DOM.dsRemainingTimeText ? DOM.dsRemainingTimeText.textContent : '';
+        DOM.miniLeftTitleText.textContent = `🌙 NREM 助眠 ${remText} (${progressPct}%)`;
+      } else {
+        const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
+        DOM.miniLeftTitleText.textContent = `${modeLabel} ${formatTime(secondsLeft)} (${progressPct}%)`;
+      }
     }
 
     if (DOM.miniLeftAudioText) {
-      if (binauralState && binauralState.enabled) {
+      if (deepSleepState && deepSleepState.running) {
+        const liveHz = DOM.dsLiveHzText ? DOM.dsLiveHzText.textContent : '8.0 Hz';
+        DOM.miniLeftAudioText.textContent = `🌙 降頻至 ${liveHz} (120Hz低載波+棕色音)`;
+      } else if (binauralState && binauralState.enabled) {
         const waveName = wavePresets[binauralState.waveMode]?.name || 'Alpha';
         DOM.miniLeftAudioText.textContent = `🧠 拍頻 ${waveName} (音量 ${binauralState.volume}%)`;
       } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
@@ -1087,16 +1171,16 @@
     const todayStr = getTodayDateString();
     const todayData = stats.history[todayStr] || { count: 0, minutes: 0 };
 
-    DOM.statTodayTime.innerHTML = `${todayData.minutes} <span>分鐘</span>`;
-    DOM.statTodayCount.innerHTML = `${todayData.count} <span>個</span>`;
+    if (DOM.statTodayTime) DOM.statTodayTime.innerHTML = `${todayData.minutes} <span>分鐘</span>`;
+    if (DOM.statTodayCount) DOM.statTodayCount.innerHTML = `${todayData.count} <span>個</span>`;
 
     let totalCount = 0;
     Object.values(stats.history).forEach(d => {
       totalCount += (d.count || 0);
     });
-    DOM.statTotalCount.innerHTML = `${totalCount} <span>個</span>`;
+    if (DOM.statTotalCount) DOM.statTotalCount.innerHTML = `${totalCount} <span>個</span>`;
 
-    DOM.analyticsModal.classList.remove('hidden');
+    if (DOM.analyticsModal) DOM.analyticsModal.classList.remove('hidden');
 
     // Render Canvas Charts
     setTimeout(() => {
@@ -1249,28 +1333,28 @@
   // 7. Settings & Backup Logic
   // --------------------------------------------------------------------------
   function openSettingsModal() {
-    DOM.settingWorkTime.value = settings.workTime;
-    DOM.settingShortBreak.value = settings.shortBreakTime;
-    DOM.settingLongBreak.value = settings.longBreakTime;
-    DOM.settingDailyGoal.value = settings.dailyGoal;
-    DOM.settingAutoStartBreaks.checked = settings.autoStartBreaks;
-    DOM.settingAutoStartWork.checked = settings.autoStartWork;
-    DOM.settingSoundSelect.value = settings.alertSound;
+    if (DOM.settingWorkTime) DOM.settingWorkTime.value = settings.workTime;
+    if (DOM.settingShortBreak) DOM.settingShortBreak.value = settings.shortBreakTime;
+    if (DOM.settingLongBreak) DOM.settingLongBreak.value = settings.longBreakTime;
+    if (DOM.settingDailyGoal) DOM.settingDailyGoal.value = settings.dailyGoal;
+    if (DOM.settingAutoStartBreaks) DOM.settingAutoStartBreaks.checked = settings.autoStartBreaks;
+    if (DOM.settingAutoStartWork) DOM.settingAutoStartWork.checked = settings.autoStartWork;
+    if (DOM.settingSoundSelect) DOM.settingSoundSelect.value = settings.alertSound;
 
-    DOM.settingsModal.classList.remove('hidden');
+    if (DOM.settingsModal) DOM.settingsModal.classList.remove('hidden');
   }
 
   function saveSettings() {
-    settings.workTime = parseInt(DOM.settingWorkTime.value, 10) || 25;
-    settings.shortBreakTime = parseInt(DOM.settingShortBreak.value, 10) || 5;
-    settings.longBreakTime = parseInt(DOM.settingLongBreak.value, 10) || 15;
-    settings.dailyGoal = parseInt(DOM.settingDailyGoal.value, 10) || 8;
-    settings.autoStartBreaks = DOM.settingAutoStartBreaks.checked;
-    settings.autoStartWork = DOM.settingAutoStartWork.checked;
-    settings.alertSound = DOM.settingSoundSelect.value;
+    if (DOM.settingWorkTime) settings.workTime = parseInt(DOM.settingWorkTime.value, 10) || 25;
+    if (DOM.settingShortBreak) settings.shortBreakTime = parseInt(DOM.settingShortBreak.value, 10) || 5;
+    if (DOM.settingLongBreak) settings.longBreakTime = parseInt(DOM.settingLongBreak.value, 10) || 15;
+    if (DOM.settingDailyGoal) settings.dailyGoal = parseInt(DOM.settingDailyGoal.value, 10) || 8;
+    if (DOM.settingAutoStartBreaks) settings.autoStartBreaks = DOM.settingAutoStartBreaks.checked;
+    if (DOM.settingAutoStartWork) settings.autoStartWork = DOM.settingAutoStartWork.checked;
+    if (DOM.settingSoundSelect) settings.alertSound = DOM.settingSoundSelect.value;
 
     saveToStorage(STORAGE_KEYS.SETTINGS, settings);
-    closeModal(DOM.settingsModal);
+    if (DOM.settingsModal) closeModal(DOM.settingsModal);
 
     // Reset current timer with new settings
     switchMode(timerMode);
@@ -1278,8 +1362,8 @@
   }
 
   function updateThemeUI() {
-    DOM.body.setAttribute('data-theme', settings.theme);
-    DOM.themeSelect.value = settings.theme;
+    document.body.setAttribute('data-theme', settings.theme || 'dark-glass');
+    if (DOM.themeSelect) DOM.themeSelect.value = settings.theme || 'dark-glass';
   }
 
   function exportBackupData() {
@@ -1361,10 +1445,10 @@
     });
 
     // Controls
-    DOM.startPauseBtn.addEventListener('click', toggleTimer);
-    DOM.zenStartPauseBtn.addEventListener('click', toggleTimer);
-    DOM.resetTimerBtn.addEventListener('click', resetTimer);
-    DOM.skipTimerBtn.addEventListener('click', skipTimer);
+    DOM.startPauseBtn?.addEventListener('click', toggleTimer);
+    DOM.zenStartPauseBtn?.addEventListener('click', toggleTimer);
+    DOM.resetTimerBtn?.addEventListener('click', resetTimer);
+    DOM.skipTimerBtn?.addEventListener('click', skipTimer);
 
     // Universal AudioContext unlocker on first user interaction
     document.addEventListener('click', () => {
@@ -1372,7 +1456,7 @@
     }, { once: true });
 
     // Ambient Noise Buttons
-    DOM.ambientBtns.forEach(btn => {
+    DOM.ambientBtns?.forEach(btn => {
       btn.addEventListener('click', () => {
         audioEngine.initCtx();
         const sound = btn.dataset.sound;
@@ -1385,26 +1469,163 @@
       });
     });
 
-    DOM.ambientVolume.addEventListener('input', (e) => {
+    DOM.ambientVolume?.addEventListener('input', (e) => {
       audioEngine.setVolume(e.target.value);
     });
 
     // Dedicated Binaural Beats Studio Logic (Strict Physical & Acoustic Algorithm)
-    const wavePresets = {
-      alpha: { deltaF: 10, name: 'Alpha (α)', label: '平靜專注、身心平靜、學習狀態' },
-      beta: { deltaF: 20, name: 'Beta (β)', label: '高效思考、邏輯分析、高度警覺' },
-      gamma: { deltaF: 40, name: 'Gamma (γ)', label: '極限超頻、記憶整合、資訊速處理' },
-      theta: { deltaF: 6, name: 'Theta (θ)', label: '靈感發想、深度冥想、直覺創想' },
-      delta: { deltaF: 2, name: 'Delta (δ)', label: '身體修復、深層放鬆、緩解失眠' }
-    };
+    function startDeepSleepStudioEngine() {
+      audioEngine.initCtx();
 
-    let binauralState = {
-      enabled: false,
-      waveMode: 'alpha',
-      baseFreq: 200, // Carrier Frequency (200 Hz optimal)
-      volume: 25,
-      comfortMasking: true
-    };
+      if (deepSleepState.running && !deepSleepState.paused) {
+        // Currently running -> Pause it
+        pauseDeepSleepStudioEngine();
+        return;
+      }
+
+      if (deepSleepState.paused) {
+        // Resume from pause
+        deepSleepState.paused = false;
+        if (DOM.dsStatusBadge) {
+          DOM.dsStatusBadge.textContent = '助眠引導中';
+          DOM.dsStatusBadge.className = 'ds-status-badge running';
+        }
+        if (DOM.dsStartPauseBtn) DOM.dsStartPauseBtn.textContent = '⏸️ 暫停助眠引導';
+        checkAndUpdateMiniWidget();
+        return;
+      }
+
+      // Fresh Start
+      deepSleepState.running = true;
+      deepSleepState.paused = false;
+      deepSleepState.elapsedSec = 0;
+
+      const totalSec = Math.round(deepSleepState.durationMins * 60);
+
+      // 120Hz Low Carrier + Initial 8.0Hz Alpha + 80% Brown Noise Masking
+      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, 'brown');
+
+      if (DOM.dsRunInfoPanel) DOM.dsRunInfoPanel.classList.remove('hidden');
+      if (DOM.dsStatusBadge) {
+        DOM.dsStatusBadge.textContent = '助眠引導中';
+        DOM.dsStatusBadge.className = 'ds-status-badge running';
+      }
+      if (DOM.dsStartPauseBtn) DOM.dsStartPauseBtn.textContent = '⏸️ 暫停助眠引導';
+
+      updateDeepSleepMetricsUI(totalSec);
+
+      if (deepSleepState.intervalId) clearInterval(deepSleepState.intervalId);
+
+      const fadeSec = Math.min(180, Math.max(2, Math.round(totalSec * 0.2)));
+
+      deepSleepState.intervalId = setInterval(() => {
+        if (deepSleepState.paused) return;
+
+        deepSleepState.elapsedSec++;
+        const elapsed = deepSleepState.elapsedSec;
+        const remaining = totalSec - elapsed;
+
+        updateDeepSleepMetricsUI(totalSec);
+
+        // Smooth Exponential Fade-Out during last phase
+        if (remaining === fadeSec) {
+          audioEngine.fadeBinauralMasterGain(fadeSec);
+        }
+
+        if (remaining <= 0) {
+          stopDeepSleepStudioEngine(true);
+        }
+      }, 1000);
+
+      checkAndUpdateMiniWidget();
+    }
+
+    function pauseDeepSleepStudioEngine() {
+      deepSleepState.paused = true;
+      if (DOM.dsStatusBadge) {
+        DOM.dsStatusBadge.textContent = '已暫停';
+        DOM.dsStatusBadge.className = 'ds-status-badge';
+      }
+      if (DOM.dsStartPauseBtn) DOM.dsStartPauseBtn.textContent = '▶️ 繼續助眠引導';
+      checkAndUpdateMiniWidget();
+    }
+
+    function stopDeepSleepStudioEngine(isCompleted = false) {
+      if (deepSleepState.intervalId) {
+        clearInterval(deepSleepState.intervalId);
+        deepSleepState.intervalId = null;
+      }
+      deepSleepState.running = false;
+      deepSleepState.paused = false;
+
+      if (DOM.dsStatusBadge) {
+        DOM.dsStatusBadge.textContent = isCompleted ? '🎉 引導完成' : '未開始';
+        DOM.dsStatusBadge.className = 'ds-status-badge';
+      }
+      if (DOM.dsStartPauseBtn) DOM.dsStartPauseBtn.textContent = '▶️ 開始深層助眠引導';
+
+      if (!isCompleted && DOM.dsRunInfoPanel) {
+        DOM.dsRunInfoPanel.classList.add('hidden');
+      }
+
+      audioEngine.stopBinauralBeats(0.5);
+      checkAndUpdateMiniWidget();
+    }
+
+    function updateDeepSleepMetricsUI(totalSec) {
+      const elapsed = deepSleepState.elapsedSec;
+      const remaining = Math.max(0, totalSec - elapsed);
+
+      const elapsedMins = Math.floor(elapsed / 60);
+      const elapsedSecs = elapsed % 60;
+      const remMins = Math.floor(remaining / 60);
+      const remSecs = remaining % 60;
+
+      if (DOM.dsElapsedTimeText) {
+        DOM.dsElapsedTimeText.textContent = `${String(elapsedMins).padStart(2, '0')}:${String(elapsedSecs).padStart(2, '0')}`;
+      }
+      if (DOM.dsRemainingTimeText) {
+        DOM.dsRemainingTimeText.textContent = `${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+      }
+
+      // Frequency Ramp Calculation (Proportional timeline for test durations)
+      let currentHz = 8.0;
+      let activeStepId = 'dsStepAlpha';
+      let progressPct = Math.round((elapsed / totalSec) * 100);
+
+      const t1 = Math.round(totalSec * 0.25); // Alpha phase (25%)
+      const t2 = Math.round(totalSec * 0.60); // Theta phase (60%)
+      const t3 = Math.round(totalSec * 0.85); // Delta phase (85%)
+
+      if (elapsed < t1) {
+        // Phase 1: 8.0 -> 5.0 Hz (Alpha -> Theta)
+        currentHz = 8.0 - (elapsed / Math.max(1, t1)) * 3.0;
+        activeStepId = 'dsStepAlpha';
+      } else if (elapsed < t2) {
+        // Phase 2: 5.0 -> 2.0 Hz (Theta -> Delta)
+        currentHz = 5.0 - ((elapsed - t1) / Math.max(1, t2 - t1)) * 3.0;
+        activeStepId = 'dsStepTheta';
+      } else if (elapsed < t3) {
+        // Phase 3: 2.0 Hz (Delta Deep Sleep)
+        currentHz = 2.0;
+        activeStepId = 'dsStepDelta';
+      } else {
+        // Phase 4: Sustain & Fade-Out
+        currentHz = 2.0;
+        activeStepId = 'dsStepSustain';
+      }
+
+      // Ramp Web Audio Frequencies
+      audioEngine.updateBinauralFrequencies(120, currentHz);
+
+      if (DOM.dsLiveHzText) DOM.dsLiveHzText.textContent = `${currentHz.toFixed(1)} Hz`;
+      if (DOM.dsPhaseProgressLine) DOM.dsPhaseProgressLine.style.width = `${Math.min(100, progressPct)}%`;
+
+      ['dsStepAlpha', 'dsStepTheta', 'dsStepDelta', 'dsStepSustain'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === activeStepId);
+      });
+    }
 
     function updateBinauralEngineUI() {
       const preset = wavePresets[binauralState.waveMode] || wavePresets.alpha;
@@ -1413,24 +1634,25 @@
 
       // Synchronize Card active highlights
       DOM.binauralCards?.forEach(c => {
-        c.classList.toggle('active', c.dataset.wave === binauralState.waveMode);
+        if (c && c.dataset) {
+          c.classList.toggle('active', c.dataset.wave === binauralState.waveMode);
+        }
       });
 
-      // Mathematical exact pure sine wave frequencies:
-      // f_left = base_freq - (deltaF / 2.0)
-      // f_right = base_freq + (deltaF / 2.0)
+      // Stop Deep Sleep Studio Engine if user explicitly switches to standard presets
+      stopDeepSleepStudioEngine(false);
+
       const fLeft = baseFreq - (deltaF / 2.0);
       const fRight = baseFreq + (deltaF / 2.0);
-
-      // Perceived pitch = (f_left + f_right) / 2 = baseFreq
       const perceivedPitch = baseFreq;
 
       if (DOM.binauralVolVal) DOM.binauralVolVal.textContent = binauralState.volume;
       if (DOM.binauralMathText) DOM.binauralMathText.textContent = `基頻 ${baseFreq}Hz | 左耳 ${fLeft.toFixed(1)}Hz / 右耳 ${fRight.toFixed(1)}Hz (頻差 Δf = ${deltaF}Hz)`;
       if (DOM.binauralPerceivedText) DOM.binauralPerceivedText.textContent = `感知音高 ${perceivedPitch}Hz（聽感呈現 ${deltaF}Hz 規律脈動 Tremolo 與頭腦中央相位移動感）`;
+      if (DOM.binauralRatioText) DOM.binauralRatioText.textContent = `純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）`;
 
       if (binauralState.enabled) {
-        audioEngine.startBinauralBeats(baseFreq, deltaF, binauralState.volume, binauralState.comfortMasking);
+        audioEngine.startBinauralBeats(baseFreq, deltaF, binauralState.volume, binauralState.comfortMasking, 'pink');
       } else {
         audioEngine.stopBinauralBeats(0.5);
       }
@@ -1452,6 +1674,41 @@
         binauralState.waveMode = card.dataset.wave;
         updateBinauralEngineUI();
       });
+    });
+
+    // Deep Sleep Studio Block Events
+    DOM.dsDurationChips?.forEach(chip => {
+      chip.addEventListener('click', () => {
+        DOM.dsDurationChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const selectedMins = parseFloat(chip.dataset.mins) || 30;
+        deepSleepState.durationMins = selectedMins;
+
+        // Interrupt & reset any currently running audio/timer
+        stopDeepSleepStudioEngine(false);
+
+        // Update remaining time preview text immediately
+        const totalSec = Math.round(selectedMins * 60);
+        const remMins = Math.floor(totalSec / 60);
+        const remSecs = totalSec % 60;
+        if (DOM.dsElapsedTimeText) DOM.dsElapsedTimeText.textContent = '00:00';
+        if (DOM.dsRemainingTimeText) DOM.dsRemainingTimeText.textContent = `${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+        if (DOM.dsLiveHzText) DOM.dsLiveHzText.textContent = '8.0 Hz';
+      });
+    });
+
+    DOM.dsStartPauseBtn?.addEventListener('click', () => {
+      startDeepSleepStudioEngine();
+    });
+
+    DOM.dsResetBtn?.addEventListener('click', () => {
+      stopDeepSleepStudioEngine(false);
+      const totalSec = Math.round(deepSleepState.durationMins * 60);
+      const remMins = Math.floor(totalSec / 60);
+      const remSecs = totalSec % 60;
+      if (DOM.dsElapsedTimeText) DOM.dsElapsedTimeText.textContent = '00:00';
+      if (DOM.dsRemainingTimeText) DOM.dsRemainingTimeText.textContent = `${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
+      if (DOM.dsLiveHzText) DOM.dsLiveHzText.textContent = '8.0 Hz';
     });
 
     DOM.comfortMaskingToggle?.addEventListener('change', (e) => {
@@ -1497,6 +1754,11 @@
         if (sleepTimerSecondsLeft > 0) {
           sleepTimerSecondsLeft--;
           updateSleepCountdownDisplay();
+
+          // Smooth exponential fade-out during last 3 minutes (180 seconds)
+          if (sleepTimerSecondsLeft === 180) {
+            audioEngine.fadeBinauralMasterGain(180);
+          }
         } else {
           onSoundSleepTimerExpired();
         }
@@ -1576,14 +1838,14 @@
     });
 
     // Task Modals
-    DOM.addTaskBtn.addEventListener('click', openAddTaskModal);
-    DOM.taskForm.addEventListener('submit', saveTaskFromForm);
-    DOM.closeTaskModalBtn.addEventListener('click', () => closeModal(DOM.taskModal));
-    DOM.cancelTaskModalBtn.addEventListener('click', () => closeModal(DOM.taskModal));
+    DOM.addTaskBtn?.addEventListener('click', openAddTaskModal);
+    DOM.taskForm?.addEventListener('submit', saveTaskFromForm);
+    DOM.closeTaskModalBtn?.addEventListener('click', () => closeModal(DOM.taskModal));
+    DOM.cancelTaskModalBtn?.addEventListener('click', () => closeModal(DOM.taskModal));
 
     // Analytics Modal
-    DOM.analyticsBtn.addEventListener('click', openAnalyticsModal);
-    DOM.closeAnalyticsModalBtn.addEventListener('click', () => closeModal(DOM.analyticsModal));
+    DOM.analyticsBtn?.addEventListener('click', openAnalyticsModal);
+    DOM.closeAnalyticsModalBtn?.addEventListener('click', () => closeModal(DOM.analyticsModal));
 
     // Version Information Modal
     DOM.versionBadgeBtn?.addEventListener('click', () => {
@@ -1597,14 +1859,14 @@
     });
 
     // Settings Modal
-    DOM.settingsBtn.addEventListener('click', openSettingsModal);
-    DOM.closeSettingsModalBtn.addEventListener('click', () => closeModal(DOM.settingsModal));
-    DOM.saveSettingsBtn.addEventListener('click', saveSettings);
-    DOM.testSoundBtn.addEventListener('click', () => {
-      audioEngine.playAlertSound(DOM.settingSoundSelect.value);
+    DOM.settingsBtn?.addEventListener('click', openSettingsModal);
+    DOM.closeSettingsModalBtn?.addEventListener('click', () => closeModal(DOM.settingsModal));
+    DOM.saveSettingsBtn?.addEventListener('click', saveSettings);
+    DOM.testSoundBtn?.addEventListener('click', () => {
+      audioEngine.playAlertSound(DOM.settingSoundSelect?.value);
     });
 
-    DOM.requestNotificationBtn.addEventListener('click', () => {
+    DOM.requestNotificationBtn?.addEventListener('click', () => {
       if ('Notification' in window) {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
@@ -1617,27 +1879,27 @@
     });
 
     // Theme Switch
-    DOM.themeSelect.addEventListener('change', (e) => {
+    DOM.themeSelect?.addEventListener('change', (e) => {
       settings.theme = e.target.value;
       saveToStorage(STORAGE_KEYS.SETTINGS, settings);
       updateThemeUI();
     });
 
     // Export / Import
-    DOM.exportDataBtn.addEventListener('click', exportBackupData);
-    DOM.importDataInput.addEventListener('change', (e) => {
+    DOM.exportDataBtn?.addEventListener('click', exportBackupData);
+    DOM.importDataInput?.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         importBackupData(e.target.files[0]);
       }
     });
 
     // Zen Mode Toggle
-    DOM.zenBtn.addEventListener('click', () => {
-      DOM.zenOverlay.classList.remove('hidden');
+    DOM.zenBtn?.addEventListener('click', () => {
+      DOM.zenOverlay?.classList.remove('hidden');
     });
 
-    DOM.exitZenBtn.addEventListener('click', () => {
-      DOM.zenOverlay.classList.add('hidden');
+    DOM.exitZenBtn?.addEventListener('click', () => {
+      DOM.zenOverlay?.classList.add('hidden');
     });
 
     // Keyboard Shortcuts
