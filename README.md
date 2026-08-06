@@ -3,7 +3,7 @@
 > **全功能極致現代化 Local Web 番茄鐘與專業雙耳拍頻 (Binaural Beats) 音訊發聲系統**  
 > 整合任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.8.5--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.8.6--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -17,8 +17,8 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.8.5-beta`（公開開發測試版）  
-> **版本狀態**：核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學比)、iOS 鎖屏背景發聲與定時關閉功能均已完成，持續進行公開測試與體驗優化。
+> **當前版本號**：`v0.8.6-beta`（公開開發測試版）  
+> **版本狀態**：新增 `My Tool List` 工具選單主介面、左右兩下角背景執行迷你動態 Widget 與即時進度條，整合核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學比) 與 iOS 鎖屏背景保活。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 

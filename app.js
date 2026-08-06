@@ -506,7 +506,21 @@
   // 3. UI Elements Selection
   // --------------------------------------------------------------------------
   const DOM = {
-    body: document.body,
+    // Main Tool List & Navigation UI
+    toolListView: document.getElementById('toolListView'),
+    pomodoroAppView: document.getElementById('pomodoroAppView'),
+    openPomodoroToolCard: document.getElementById('openPomodoroToolCard'),
+    backToToolListBtn: document.getElementById('backToToolListBtn'),
+    miniFloatingWidget: document.getElementById('miniFloatingWidget'),
+    miniWidgetIcon: document.getElementById('miniWidgetIcon'),
+    miniWidgetStatusText: document.getElementById('miniWidgetStatusText'),
+    miniWidgetSubText: document.getElementById('miniWidgetSubText'),
+    miniWidgetPlayPauseBtn: document.getElementById('miniWidgetPlayPauseBtn'),
+    miniFloatingLeftBar: document.getElementById('miniFloatingLeftBar'),
+    miniRingProgress: document.getElementById('miniRingProgress'),
+    miniProgressPctText: document.getElementById('miniProgressPctText'),
+    miniLeftTitleText: document.getElementById('miniLeftTitleText'),
+    miniLeftAudioText: document.getElementById('miniLeftAudioText'),
     timeText: document.getElementById('timeText'),
     activeTaskLabel: document.getElementById('activeTaskLabel'),
     cycleIndicator: document.getElementById('cycleIndicator'),
@@ -601,7 +615,92 @@
   };
 
   // --------------------------------------------------------------------------
-  // 4. Timer Logic & Functions
+  // 4. Navigation & Mini Widget Logic
+  // --------------------------------------------------------------------------
+  let activeView = 'toolList'; // 'toolList' | 'pomodoroApp'
+
+  function switchView(viewName) {
+    activeView = viewName;
+    if (viewName === 'toolList') {
+      if (DOM.toolListView) DOM.toolListView.classList.remove('hidden');
+      if (DOM.pomodoroAppView) DOM.pomodoroAppView.classList.add('hidden');
+      checkAndUpdateMiniWidget();
+    } else {
+      if (DOM.toolListView) DOM.toolListView.classList.add('hidden');
+      if (DOM.pomodoroAppView) DOM.pomodoroAppView.classList.remove('hidden');
+      if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.add('hidden');
+      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.add('hidden');
+    }
+  }
+
+  function checkAndUpdateMiniWidget() {
+    if (activeView !== 'toolList') return;
+
+    const isTimerActive = timerState === 'running' || timerState === 'paused';
+    const isBinauralActive = binauralState && binauralState.enabled;
+    const isAmbientActive = audioEngine && audioEngine.currentAmbient !== 'none';
+
+    if (isTimerActive || isBinauralActive || isAmbientActive) {
+      if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.remove('hidden');
+      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.remove('hidden');
+      updateMiniWidgetUI();
+    } else {
+      if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.add('hidden');
+      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.add('hidden');
+    }
+  }
+
+  function updateMiniWidgetUI() {
+    // 1. Update Right Mini Floating Widget (Quick Controls)
+    if (DOM.miniWidgetStatusText) {
+      if (timerState === 'running' || timerState === 'paused') {
+        const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
+        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = timerMode === 'work' ? '🍅' : '☕';
+        DOM.miniWidgetStatusText.textContent = `${modeLabel} ${formatTime(secondsLeft)}`;
+        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = timerState === 'running' ? '計時執行中...' : '暫停中';
+        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = timerState === 'running' ? '⏸️' : '▶️';
+      } else if (binauralState && binauralState.enabled) {
+        const waveName = wavePresets[binauralState.waveMode]?.name || 'Alpha';
+        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🧠';
+        DOM.miniWidgetStatusText.textContent = `拍頻 ${waveName} 發聲中`;
+        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = '雙耳腦波同步執行中';
+        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = '🔊';
+      } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
+        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🔊';
+        DOM.miniWidgetStatusText.textContent = `白噪音 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : ''}`;
+        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = '自然聲學播放中';
+        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = '🔊';
+      }
+    }
+
+    // 2. Update Left Mini Floating Bar (Progress % & Sound Summary)
+    const progressPct = totalSeconds > 0 ? Math.min(100, Math.max(0, Math.round(((totalSeconds - secondsLeft) / totalSeconds) * 100))) : 0;
+    if (DOM.miniRingProgress) {
+      DOM.miniRingProgress.setAttribute('stroke-dasharray', `${progressPct}, 100`);
+    }
+    if (DOM.miniProgressPctText) {
+      DOM.miniProgressPctText.textContent = `${progressPct}%`;
+    }
+
+    if (DOM.miniLeftTitleText) {
+      const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
+      DOM.miniLeftTitleText.textContent = `${modeLabel} ${formatTime(secondsLeft)} (${progressPct}%)`;
+    }
+
+    if (DOM.miniLeftAudioText) {
+      if (binauralState && binauralState.enabled) {
+        const waveName = wavePresets[binauralState.waveMode]?.name || 'Alpha';
+        DOM.miniLeftAudioText.textContent = `🧠 拍頻 ${waveName} (音量 ${binauralState.volume}%)`;
+      } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
+        DOM.miniLeftAudioText.textContent = `🔊 白噪音 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : ''}`;
+      } else {
+        DOM.miniLeftAudioText.textContent = `🔇 音效未開啟`;
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. Timer Logic & Functions
   // --------------------------------------------------------------------------
   function initTimer() {
     updateTimerDisplay();
@@ -728,6 +827,7 @@
     // Document Title Update
     const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
     document.title = `(${formatted}) ${modeLabel} - PomodoroFlow`;
+    checkAndUpdateMiniWidget();
 
     // SVG Ring Stroke Dashoffset calculation
     const circumference = 2 * Math.PI * 135; // 848.23
@@ -1239,6 +1339,20 @@
   // 8. Event Listeners Setup
   // --------------------------------------------------------------------------
   function setupEventListeners() {
+    // Main Navigation & Mini Widget Events
+    DOM.openPomodoroToolCard?.addEventListener('click', () => switchView('pomodoroApp'));
+    DOM.backToToolListBtn?.addEventListener('click', () => switchView('toolList'));
+    DOM.miniFloatingWidget?.addEventListener('click', (e) => {
+      if (e.target.closest('#miniWidgetPlayPauseBtn')) return;
+      switchView('pomodoroApp');
+    });
+    DOM.miniFloatingLeftBar?.addEventListener('click', () => switchView('pomodoroApp'));
+    DOM.miniWidgetPlayPauseBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleTimer();
+      checkAndUpdateMiniWidget();
+    });
+
     // Mode Switch Tabs
     DOM.modeTabs.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -1267,6 +1381,7 @@
 
         audioEngine.setAmbientSound(sound);
         DOM.currentAmbientLabel.textContent = sound === 'none' ? '已關閉' : btn.textContent;
+        checkAndUpdateMiniWidget();
       });
     });
 
@@ -1297,7 +1412,7 @@
       const baseFreq = binauralState.baseFreq;
 
       // Synchronize Card active highlights
-      DOM.binauralCards.forEach(c => {
+      DOM.binauralCards?.forEach(c => {
         c.classList.toggle('active', c.dataset.wave === binauralState.waveMode);
       });
 
@@ -1319,6 +1434,8 @@
       } else {
         audioEngine.stopBinauralBeats(0.5);
       }
+
+      checkAndUpdateMiniWidget();
     }
 
     DOM.binauralToggle?.addEventListener('change', (e) => {

@@ -166,6 +166,303 @@ body {
 }
 
 /* Header Navbar */
+/* ==========================================================================
+   Tool List Dashboard (My Tool List) & Mini Floating Widget Styles
+   ========================================================================== */
+.tool-list-container {
+  max-width: 1050px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.tool-list-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.tool-list-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tool-list-brand .brand-icon {
+  font-size: 40px;
+}
+
+.tool-list-title {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.tool-list-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.tool-card {
+  position: relative;
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-lg);
+}
+
+.active-tool-card {
+  cursor: pointer;
+}
+
+.active-tool-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3), 0 0 20px var(--accent-glow);
+}
+
+.disabled-tool-card {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+}
+
+.tool-card-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.coming-soon-badge {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
+}
+
+.tool-card-icon {
+  font-size: 42px;
+}
+
+.tool-card-info h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tool-card-info p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.btn-enter-tool {
+  margin-top: auto;
+  align-self: flex-start;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.btn-back-tools {
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+}
+
+/* --------------------------------------------------------------------------
+   Mini Floating Widget (迷你懸浮小方塊)
+   -------------------------------------------------------------------------- */
+.mini-floating-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 990;
+  background: rgba(18, 18, 24, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--accent-primary);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slideUpWidget 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUpWidget {
+  from { opacity: 0; transform: translateY(30px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mini-floating-widget:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 28px var(--accent-glow);
+}
+
+.mini-widget-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+  animation: pulse 1.5s infinite;
+}
+
+.mini-widget-icon {
+  font-size: 24px;
+}
+
+.mini-widget-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.mini-widget-status {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-widget-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-mini-play {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-primary);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-mini-play:hover {
+  background: var(--accent-primary);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* --------------------------------------------------------------------------
+   Mini Floating Left Bar (左下角倒數計時進度與音效資訊面板)
+   -------------------------------------------------------------------------- */
+.mini-floating-left-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 990;
+  background: rgba(18, 18, 24, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--accent-primary);
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: slideUpWidget 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mini-floating-left-bar:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 28px var(--accent-glow);
+}
+
+.mini-progress-ring-wrapper {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-ring-svg {
+  width: 38px;
+  height: 38px;
+  transform: rotate(-90deg);
+}
+
+.mini-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 3.8;
+}
+
+.mini-ring-progress {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s ease;
+}
+
+.mini-progress-pct {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mini-left-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mini-left-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-left-audio {
+  font-size: 11px;
+  color: var(--accent-primary);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .app-header {
   display: flex;
   justify-content: space-between;

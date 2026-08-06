@@ -21,17 +21,66 @@
     <div class="glow-orb orb-3"></div>
   </div>
 
-  <div class="app-container">
-    <!-- 頂部導覽列 Header -->
-    <header class="app-header">
-      <div class="brand">
-        <span class="brand-icon">🍅</span>
-        <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
-        <!-- 開發測試版本號標籤 -->
-        <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-          <span class="beta-pulse"></span> v0.8.5-beta
-        </button>
+  <!-- 主介面 1：My Tool List (工具選單列表) -->
+  <div id="toolListView" class="tool-list-container">
+    <header class="tool-list-header">
+      <div class="tool-list-brand">
+        <span class="brand-icon">🛠️</span>
+        <h1 class="tool-list-title">My <span class="gradient-text">Tool List</span></h1>
       </div>
+      <p class="tool-list-subtitle">個人開發工具集合</p>
+    </header>
+
+    <div class="tool-grid">
+      <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
+      <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
+        <div class="tool-card-badge">v0.8.6-beta</div>
+        <div class="tool-card-icon">🍅</div>
+        <div class="tool-card-info">
+          <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
+          <p>整合番茄鐘計時、雙耳拍頻正弦波演算法、2.5:7.5 黃金比率與 iOS 背景發聲。</p>
+        </div>
+        <button class="btn btn-primary btn-enter-tool">🚀 開啟工具</button>
+      </div>
+
+      <!-- Tool Item 2: Future Tool Placeholder -->
+      <div class="tool-card disabled-tool-card">
+        <div class="tool-card-badge coming-soon-badge">即將推出</div>
+        <div class="tool-card-icon">🛠️</div>
+        <div class="tool-card-info">
+          <h3>個人實用工具</h3>
+          <p>規劃開發中...</p>
+        </div>
+      </div>
+
+      <!-- Tool Item 3: Future Tool Placeholder -->
+      <div class="tool-card disabled-tool-card">
+        <div class="tool-card-badge coming-soon-badge">即將推出</div>
+        <div class="tool-card-icon">⚡</div>
+        <div class="tool-card-info">
+          <h3>個人實用工具</h3>
+          <p>規劃開發中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主介面 2：PomodoroFlow 番茄鐘與雙耳拍頻工具 -->
+  <div id="pomodoroAppView" class="hidden">
+    <div class="app-container">
+      <!-- 頂部導覽列 Header -->
+      <header class="app-header">
+        <div class="brand">
+          <button id="backToToolListBtn" class="btn btn-secondary btn-small btn-back-tools" title="返回 My Tool List 主介面 (背景繼續執行)">
+            ⬅️ 返回工具列表
+          </button>
+          <span class="brand-icon">🍅</span>
+          <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
+          <!-- 開發測試版本號標籤 -->
+          <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
+            <span class="beta-pulse"></span> v0.8.6-beta
+          </button>
+        </div>
       
       <div class="header-actions">
         <!-- 連勝數顯示 -->
@@ -485,8 +534,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.5-beta</div>
-            <div class="v-desc">本版本已完成核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學黃金比例)、iOS 鎖屏背景發聲保活、定時關閉與任務統計。目前為公開測試階段，持續蒐集體驗建議。</div>
+            <div class="v-num">v0.8.6-beta</div>
+            <div class="v-desc">本版本新增「My Tool List」主選單介面、雙下角背景懸浮執行小方塊與即時圓環進度條，整合核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學黃金比例) 與 iOS 鎖屏背景保活。</div>
           </div>
 
           <hr class="divider">
@@ -529,6 +578,33 @@
           <button id="zenStartPauseBtn" class="btn btn-primary btn-large">暫停</button>
         </div>
       </div>
+    </div> <!-- Close #zenOverlay -->
+  </div> <!-- Close .app-container -->
+</div> <!-- Close #pomodoroAppView -->
+
+  <!-- 迷你懸浮小方塊 (返回 My Tool List 主介面時右下角背景執行微型顯示) -->
+  <div id="miniFloatingWidget" class="mini-floating-widget hidden" title="點擊返回番茄鐘與雙耳拍頻工具頁面">
+    <div class="mini-widget-pulse"></div>
+    <span id="miniWidgetIcon" class="mini-widget-icon">🍅</span>
+    <div class="mini-widget-info">
+      <div id="miniWidgetStatusText" class="mini-widget-status">🎯 專注 25:00</div>
+      <div id="miniWidgetSubText" class="mini-widget-sub">背景持續執行中</div>
+    </div>
+    <button id="miniWidgetPlayPauseBtn" class="btn-mini-play" title="快速暫停/繼續">▶️</button>
+  </div>
+
+  <!-- 左下角倒數計時進度與音效發聲資訊列 -->
+  <div id="miniFloatingLeftBar" class="mini-floating-left-bar hidden" title="點擊返回番茄鐘與雙耳拍頻工具頁面">
+    <div class="mini-progress-ring-wrapper">
+      <svg class="mini-ring-svg" viewBox="0 0 36 36">
+        <path class="mini-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+        <path id="miniRingProgress" class="mini-ring-progress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+      </svg>
+      <span id="miniProgressPctText" class="mini-progress-pct">0%</span>
+    </div>
+    <div class="mini-left-info">
+      <div id="miniLeftTitleText" class="mini-left-title">🎯 專注 25:00</div>
+      <div id="miniLeftAudioText" class="mini-left-audio">🧠 Alpha (α) 10Hz 拍頻發聲中</div>
     </div>
   </div>
 
