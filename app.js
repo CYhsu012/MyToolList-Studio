@@ -82,27 +82,62 @@
       this.enableIOSBackgroundAudioKeeper();
     }
 
+    connectOutput(node) {
+      if (!this.ctx || !node) return;
+
+      // Always connect to default speakers
+      try { node.connect(this.ctx.destination); } catch (e) {}
+
+      // MediaStream piping for iOS Safari Lock Screen Background Audio
+      if (!this.mediaStreamDest && (this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination)) {
+        try {
+          const createDest = this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination;
+          this.mediaStreamDest = createDest.call(this.ctx);
+          
+          const silentAudio = document.getElementById('silentAudioLoop');
+          if (silentAudio && this.mediaStreamDest.stream) {
+            silentAudio.srcObject = this.mediaStreamDest.stream;
+            silentAudio.play().catch(() => {});
+          }
+        } catch (e) {}
+      }
+
+      if (this.mediaStreamDest) {
+        try { node.connect(this.mediaStreamDest); } catch (e) {}
+      }
+    }
+
     // --- iOS Safari Lock Screen Background Audio Keeper ---
     enableIOSBackgroundAudioKeeper() {
       const silentAudio = document.getElementById('silentAudioLoop');
-      if (silentAudio && silentAudio.paused) {
-        silentAudio.play().catch(() => {});
-      }
+      if (silentAudio) {
+        const playPromise = silentAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            if ('mediaSession' in navigator) {
+              try {
+                navigator.mediaSession.playbackState = 'playing';
+                navigator.mediaSession.metadata = new MediaMetadata({
+                  title: 'PomodoroFlow 🍅 雙耳拍頻與專注',
+                  artist: 'Binaural Beats Studio',
+                  album: 'iOS 鎖屏背景持續發聲中'
+                });
 
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'PomodoroFlow 🍅 雙耳拍頻與專注',
-          artist: 'Binaural Beats Studio',
-          album: '背景與鎖定螢幕持續發聲中'
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => {
-          if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-          if (silentAudio) silentAudio.play().catch(() => {});
-        });
-        navigator.mediaSession.setActionHandler('pause', () => {
-          if (silentAudio) silentAudio.pause();
-        });
+                navigator.mediaSession.setActionHandler('play', () => {
+                  if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                  if (silentAudio) silentAudio.play().catch(() => {});
+                  navigator.mediaSession.playbackState = 'playing';
+                });
+                navigator.mediaSession.setActionHandler('pause', () => {
+                  if (silentAudio) silentAudio.pause();
+                  navigator.mediaSession.playbackState = 'paused';
+                });
+              } catch (e) {}
+            }
+          }).catch(err => {
+            console.log('Silent audio playback error:', err);
+          });
+        }
       }
     }
 
@@ -110,6 +145,9 @@
       const silentAudio = document.getElementById('silentAudioLoop');
       if (silentAudio && this.currentAmbient === 'none' && !this.binauralMasterGain) {
         silentAudio.pause();
+        if ('mediaSession' in navigator) {
+          try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
+        }
       }
     }
 
@@ -212,7 +250,7 @@
 
       this.ambientGainNode = this.ctx.createGain();
       this.ambientGainNode.gain.setValueAtTime(this.ambientVolume, this.ctx.currentTime);
-      this.ambientGainNode.connect(this.ctx.destination);
+      this.connectOutput(this.ambientGainNode);
 
       const bufferSize = this.ctx.sampleRate * 3;
       const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -319,7 +357,7 @@
       this.binauralMasterGain = this.ctx.createGain();
       this.binauralMasterGain.gain.setValueAtTime(0.0001, now);
       this.binauralMasterGain.gain.linearRampToValueAtTime(targetVol, now + 1.2);
-      this.binauralMasterGain.connect(this.ctx.destination);
+      this.connectOutput(this.binauralMasterGain);
 
       // Sub-gain Node for Pure Sine Beat Tone (25% Golden Ratio)
       const beatToneGainNode = this.ctx.createGain();
