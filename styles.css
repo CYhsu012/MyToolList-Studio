@@ -1257,3 +1257,202 @@ input:checked + .switch-slider:before {
   0% { opacity: 0.85; transform: scale(1); }
   100% { opacity: 1; transform: scale(1.03); }
 }
+
+/* ==========================================================================
+   10. Mobile Phone Optimization (iPhone 16 / Mobile Layout)
+   ========================================================================== */
+
+/* iOS Safari Safe Area & Touch Optimizations */
+html, body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    gap: 16px;
+  }
+
+  .app-header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .brand-title {
+    font-size: 20px;
+  }
+
+  .header-actions {
+    gap: 8px;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .streak-badge {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+
+  .icon-select {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .card {
+    padding: 20px 16px;
+    border-radius: var(--radius-md);
+    gap: 18px;
+  }
+
+  /* Timer Display Scaling on Mobile */
+  .timer-display-wrapper {
+    width: 230px;
+    height: 230px;
+    margin: 8px 0;
+  }
+
+  .time-text {
+    font-size: clamp(38px, 11vw, 48px);
+  }
+
+  .active-task-label {
+    font-size: 13px;
+    max-width: 170px;
+  }
+
+  .mode-tabs {
+    max-width: 100%;
+  }
+
+  .mode-tab {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .timer-controls {
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-large {
+    font-size: 16px;
+    padding: 14px 28px;
+    flex: 1;
+    max-width: 180px;
+  }
+
+  .btn-icon-text {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Ambient & Binaural Studio Mobile Layout */
+  .ambient-sound-section {
+    padding: 14px 12px;
+  }
+
+  .ambient-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .binaural-card {
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  .card-icon {
+    font-size: 20px;
+  }
+
+  .card-title {
+    font-size: 13px;
+  }
+
+  .card-hz {
+    font-size: 11px;
+  }
+
+  .binaural-sensory-panel {
+    padding: 10px 12px;
+  }
+
+  .binaural-controls-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .binaural-volume-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .binaural-volume-box input[type="range"] {
+    width: 60%;
+  }
+
+  /* Sleep Timer Mobile Layout */
+  .sleep-timer-inputs {
+    gap: 8px;
+  }
+
+  .time-input-group input[type="number"] {
+    width: 52px;
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  .sleep-preset-chips {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .preset-chip {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+  }
+
+  .sleep-timer-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Modals on Mobile */
+  .modal-card {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-large {
+    max-width: 100%;
+  }
+
+  .stat-summary-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Zen Mode on Mobile */
+  .zen-time-text {
+    font-size: clamp(60px, 20vw, 100px);
+  }
+
+  .zen-task-title {
+    font-size: 18px;
+    padding: 0 16px;
+    text-align: center;
+  }
+
+  .btn-zen-exit {
+    top: calc(16px + env(safe-area-inset-top));
+    right: 16px;
+  }
+}
