@@ -27,6 +27,10 @@
       <div class="brand">
         <span class="brand-icon">🍅</span>
         <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
+        <!-- 開發測試版本號標籤 -->
+        <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
+          <span class="beta-pulse"></span> v0.8.5-beta
+        </button>
       </div>
       
       <div class="header-actions">
@@ -467,6 +471,48 @@
         </div>
         <div class="modal-footer">
           <button id="saveSettingsBtn" class="btn btn-primary">儲存設定</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 版本號與進版規則 Modal -->
+    <div id="versionModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>🧪 專案版本資訊與進版規範</h3>
+          <button id="closeVersionModalBtn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="version-status-card">
+            <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
+            <div class="v-num">v0.8.5-beta</div>
+            <div class="v-desc">本版本已完成核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學黃金比例)、iOS 鎖屏背景發聲保活、定時關閉與任務統計。目前為公開測試階段，持續蒐集體驗建議。</div>
+          </div>
+
+          <hr class="divider">
+
+          <h4>📌 未來 SemVer 語意化進版規範</h4>
+          <div class="version-rules-list">
+            <div class="rule-item">
+              <span class="rule-badge major">MAJOR 主版本</span>
+              <span class="rule-text"><strong>v1.0.0</strong>：當完成所有全平台測試、PWA 離線快取與 UI 大版本升級時正式發布。</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-badge minor">MINOR 次版本</span>
+              <span class="rule-text"><strong>v0.9.0</strong>：新增重大功能模組（如：新音效產生器、語音提示、行事曆同步）。</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-badge patch">PATCH 修補號</span>
+              <span class="rule-text"><strong>v0.8.6</strong>：Bug 修復、行動端排版微調、演算法音量參數校正。</span>
+            </div>
+            <div class="rule-item">
+              <span class="rule-badge stage">STAGE 階段標籤</span>
+              <span class="rule-text"><strong>-alpha / -beta / -rc</strong>：內部實驗版 / 公開測試版 / 準發布正式版。</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="closeVersionModalFooterBtn" class="btn btn-primary">關閉</button>
         </div>
       </div>
     </div>

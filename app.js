@@ -473,6 +473,12 @@
     skipTimerBtn: document.getElementById('skipTimerBtn'),
     modeTabs: document.querySelectorAll('.mode-tab'),
     
+    // Version Modal UI
+    versionBadgeBtn: document.getElementById('versionBadgeBtn'),
+    versionModal: document.getElementById('versionModal'),
+    closeVersionModalBtn: document.getElementById('closeVersionModalBtn'),
+    closeVersionModalFooterBtn: document.getElementById('closeVersionModalFooterBtn'),
+
     // Ambient UI
     ambientBtns: document.querySelectorAll('.ambient-btn'),
     ambientVolume: document.getElementById('ambientVolume'),
@@ -1416,6 +1422,17 @@
     // Analytics Modal
     DOM.analyticsBtn.addEventListener('click', openAnalyticsModal);
     DOM.closeAnalyticsModalBtn.addEventListener('click', () => closeModal(DOM.analyticsModal));
+
+    // Version Information Modal
+    DOM.versionBadgeBtn?.addEventListener('click', () => {
+      DOM.versionModal?.classList.remove('hidden');
+    });
+    DOM.closeVersionModalBtn?.addEventListener('click', () => {
+      DOM.versionModal?.classList.add('hidden');
+    });
+    DOM.closeVersionModalFooterBtn?.addEventListener('click', () => {
+      DOM.versionModal?.classList.add('hidden');
+    });
 
     // Settings Modal
     DOM.settingsBtn.addEventListener('click', openSettingsModal);

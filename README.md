@@ -3,12 +3,31 @@
 > **全功能極致現代化 Local Web 番茄鐘與專業雙耳拍頻 (Binaural Beats) 音訊發聲系統**  
 > 整合任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
+![Version](https://img.shields.io/badge/version-v0.8.5--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
 ![Web Audio API](https://img.shields.io/badge/Web%20Audio%20API-10b981?style=flat)
 ![100% Offline](https://img.shields.io/badge/100%25-Offline--Ready-indigo)
+
+---
+
+## 🧪 當前版本與未來進版規範 (Versioning Policy)
+
+本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
+
+> **當前版本號**：`v0.8.5-beta`（公開開發測試版）  
+> **版本狀態**：核心番茄鐘、Web Audio 雙耳拍頻 (2.5:7.5 聲學比)、iOS 鎖屏背景發聲與定時關閉功能均已完成，持續進行公開測試與體驗優化。
+
+### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
+
+| 階段 / 欄位 | 說明與進版條件 | 範例 |
+| :--- | :--- | :--- |
+| **MAJOR (主版本)** | 當進行重大架構升級、UI 大版本翻新或 PWA 離線快取正式版發布時遞增。 | `v1.0.0` (正式發布版) |
+| **MINOR (次版本)** | 當新增全新功能模組時遞增（如：新增新音效產生器、語音提示、第三方行事曆同步）。 | `v0.9.0` |
+| **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.8.6` |
+| **STAGE (階段標籤)** | `-alpha` (內部實驗版) $\rightarrow$ `-beta` (**當前階段**) $\rightarrow$ `-rc` (準發布版) $\rightarrow$ 正式版。 | `v0.8.5-beta` |
 
 ---
 
