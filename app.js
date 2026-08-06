@@ -84,7 +84,34 @@
 
     connectOutput(node) {
       if (!this.ctx || !node) return;
-      try { node.connect(this.ctx.destination); } catch (e) {}
+
+      const silentAudio = document.getElementById('silentAudioLoop');
+
+      // Create MediaStreamDestination to pipe Web Audio into HTML5 <audio> tag for iOS Safari Background Audio
+      if (!this.mediaStreamDest && (this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination)) {
+        try {
+          const createDest = this.ctx.createMediaStreamDestination || this.ctx.webkitCreateMediaStreamDestination;
+          this.mediaStreamDest = createDest.call(this.ctx);
+          if (silentAudio && this.mediaStreamDest.stream) {
+            silentAudio.srcObject = this.mediaStreamDest.stream;
+            silentAudio.play().catch(() => {});
+          }
+        } catch (e) {
+          console.log('MediaStream destination fallback:', e);
+        }
+      }
+
+      if (this.mediaStreamDest && silentAudio) {
+        // Connect ONLY to mediaStreamDest so HTML5 <audio> handles speaker output (Single Audio Path = No Distortion, 100% Background Audio)
+        try {
+          node.connect(this.mediaStreamDest);
+        } catch (e) {
+          try { node.connect(this.ctx.destination); } catch (err) {}
+        }
+      } else {
+        // Desktop or browsers without HTML5 MediaStream audio
+        try { node.connect(this.ctx.destination); } catch (e) {}
+      }
     }
 
     // --- iOS Safari Lock Screen Background Audio Keeper ---
