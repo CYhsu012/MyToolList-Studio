@@ -34,7 +34,7 @@
     <div class="tool-grid">
       <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
       <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
-        <div class="tool-card-badge">v0.8.8-beta</div>
+        <div class="tool-card-badge" data-app-version>v0.9.0-beta</div>
         <div class="tool-card-icon">🍅</div>
         <div class="tool-card-info">
           <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> v0.8.11-beta
+            <span class="beta-pulse"></span> <span data-app-version>v0.9.0-beta</span>
           </button>
         </div>
       
@@ -175,6 +175,20 @@
             跳過
           </button>
         </div>
+      </section>
+
+      <!-- 右側/下方：工作區（任務清單 / 音效工作室 分頁切換） -->
+      <section class="workspace-section card">
+        <nav class="workspace-tabs" id="workspaceTabs">
+          <button type="button" class="workspace-tab active" data-workspace="tasks">📋 任務清單</button>
+          <button type="button" class="workspace-tab" data-workspace="audio">
+            🎧 音效工作室
+            <span id="workspaceAudioDot" class="workspace-tab-dot hidden" title="音訊發聲中"></span>
+          </button>
+        </nav>
+
+        <!-- 工作區面板：音效工作室 -->
+        <div class="workspace-panel hidden" data-workspace-panel="audio">
 
         <!-- 離線 Web Audio 白噪音與雙耳拍頻控制器 -->
         <div class="ambient-sound-section">
@@ -182,6 +196,17 @@
             <span class="ambient-title">🎧 離線環境音 & 雙耳拍頻 (Binaural Beats)</span>
             <span id="currentAmbientLabel" class="ambient-status">已關閉</span>
           </div>
+
+          <!-- 音效工作室分頁導覽 -->
+          <div class="audio-subtab-nav" id="audioSubtabNav">
+            <button type="button" class="audio-subtab-btn active" data-audiotab="ambient">🔊 環境音</button>
+            <button type="button" class="audio-subtab-btn" data-audiotab="binaural">🧠 雙耳拍頻</button>
+            <button type="button" class="audio-subtab-btn" data-audiotab="sleep">🌙 NREM 助眠</button>
+            <button type="button" class="audio-subtab-btn" data-audiotab="timer">⏳ 定時關閉</button>
+          </div>
+
+          <!-- 分頁面板：環境音 -->
+          <div class="audio-subpanel" data-audiotab-panel="ambient">
 
           <!-- 白噪音切換 -->
           <div class="ambient-controls">
@@ -212,8 +237,11 @@
               <div id="ytIframeWrapper" class="yt-iframe-wrapper"></div>
             </div>
           </div>
+          </div>
+          <!-- /分頁面板：環境音 -->
 
-          <hr class="divider" style="margin: 12px 0;">
+          <!-- 分頁面板：雙耳拍頻 -->
+          <div class="audio-subpanel hidden" data-audiotab-panel="binaural">
 
           <!-- 專業雙耳拍頻腦波產生器 (Binaural Beats Studio) -->
           <div class="binaural-beats-studio">
@@ -268,10 +296,22 @@
                   <div class="card-title">Delta (δ) 睡眠修復</div>
                   <div class="card-hz">拍頻 2 Hz · 基頻 120 Hz (低沉安撫)</div>
                 </div>
+              </button>
             </div>
 
-            <!-- 2. 音量、基頻載波與防聽覺疲勞控制列 -->
+            <!-- 常用控制：音量 -->
             <div class="binaural-controls-row">
+              <div class="binaural-volume-box">
+                <span class="vol-label">🔊 音量: <span id="binauralVolVal">25</span>%</span>
+                <input type="range" id="binauralVolSlider" min="0" max="100" value="25" title="雙耳拍頻主音量">
+              </div>
+            </div>
+
+            <!-- 進階設定：基頻載波、防聽覺疲勞遮罩、聲學數據面板（預設收合） -->
+            <button type="button" id="binauralAdvancedToggle" class="audio-advanced-toggle" aria-expanded="false">
+              <span class="adv-toggle-arrow">▸</span> 進階設定：基頻載波、防聽覺疲勞遮罩、聲學數據面板
+            </button>
+            <div id="binauralAdvancedPanel" class="binaural-advanced-panel hidden">
               <div class="carrier-freq-box">
                 <span class="carrier-label">🎼 基頻載波:</span>
                 <select id="carrierFreqSelect" class="carrier-select" title="基頻決定音高聽感與大腦腦幹相位鎖定解碼效率（硬性限制於 100Hz - 400Hz 黃金感應區間）">
@@ -288,32 +328,30 @@
                 <span>🌿 防聽覺疲勞柔和遮罩 (Pink Noise)</span>
               </label>
 
-              <div class="binaural-volume-box">
-                <span class="vol-label">🔊 音量: <span id="binauralVolVal">25</span>%</span>
-                <input type="range" id="binauralVolSlider" min="0" max="100" value="25" title="雙耳拍頻主音量">
-              </div>
-            </div>
-
-            <!-- 3. 實時物理聲學數據面板 (3-Column Metrics Dashboard) -->
-            <div class="binaural-sensory-panel">
-              <div class="sensory-grid">
-                <div class="sensory-card">
-                  <span class="sensory-card-title">🎛️ 物理聲學運算</span>
-                  <span id="binauralMathText" class="sensory-card-val">載波 200Hz | 左耳 195.0Hz / 右耳 205.0Hz (Δf = 10Hz)</span>
-                </div>
-                <div class="sensory-card">
-                  <span class="sensory-card-title">🌊 聽感與腦幹相位</span>
-                  <span id="binauralPerceivedText" class="sensory-card-val">感知音高 200Hz（10Hz 脈動 Tremolo + 相位鎖定）</span>
-                </div>
-                <div class="sensory-card">
-                  <span class="sensory-card-title">⚖️ 防耳疲勞黃金比</span>
-                  <span id="binauralRatioText" class="sensory-card-val">純拍頻 25% : 粉紅遮罩音 75%</span>
+              <!-- 實時物理聲學數據面板 (3-Column Metrics Dashboard) -->
+              <div class="binaural-sensory-panel">
+                <div class="sensory-grid">
+                  <div class="sensory-card">
+                    <span class="sensory-card-title">🎛️ 物理聲學運算</span>
+                    <span id="binauralMathText" class="sensory-card-val">載波 200Hz | 左耳 195.0Hz / 右耳 205.0Hz (Δf = 10Hz)</span>
+                  </div>
+                  <div class="sensory-card">
+                    <span class="sensory-card-title">🌊 聽感與腦幹相位</span>
+                    <span id="binauralPerceivedText" class="sensory-card-val">感知音高 200Hz（10Hz 脈動 Tremolo + 相位鎖定）</span>
+                  </div>
+                  <div class="sensory-card">
+                    <span class="sensory-card-title">⚖️ 防耳疲勞黃金比</span>
+                    <span id="binauralRatioText" class="sensory-card-val">純拍頻 25% : 粉紅遮罩音 75%</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          </div>
+          <!-- /分頁面板：雙耳拍頻 -->
 
-          <hr class="divider" style="margin: 16px 0;">
+          <!-- 分頁面板：NREM 助眠 -->
+          <div class="audio-subpanel hidden" data-audiotab-panel="sleep">
 
           <!-- 🌙 NREM 深層慢波助眠獨立實驗室 (獨立下方專屬區域) -->
           <div id="deepSleepStudioBlock" class="deep-sleep-studio-card">
@@ -388,8 +426,11 @@
               </div>
             </div>
           </div>
+          </div>
+          <!-- /分頁面板：NREM 助眠 -->
 
-          <hr class="divider" style="margin: 16px 0;">
+          <!-- 分頁面板：定時關閉 -->
+          <div class="audio-subpanel hidden" data-audiotab-panel="timer">
 
           <!-- 音效定時關閉倒數計時器 (精確到秒) -->
           <div class="sound-sleep-timer-studio">
@@ -425,11 +466,14 @@
               <div id="sleepTimerCountdownText" class="sleep-countdown-text hidden">倒數剩餘：15:00</div>
             </div>
           </div>
+          </div>
+          <!-- /分頁面板：定時關閉 -->
         </div>
-      </section>
+        </div>
+        <!-- /工作區面板：音效工作室 -->
 
-      <!-- 右側/下方：任務管理區 -->
-      <section class="tasks-section card">
+        <!-- 工作區面板：任務清單 -->
+        <div class="workspace-panel" data-workspace-panel="tasks">
         <div class="section-header">
           <h2>📋 專注任務清單</h2>
           <button id="addTaskBtn" class="btn btn-small btn-primary">
@@ -461,6 +505,8 @@
             <div id="dailyGoalProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
           </div>
         </div>
+        </div>
+        <!-- /工作區面板：任務清單 -->
       </section>
     </main>
 
@@ -640,8 +686,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.11-beta</div>
-            <div class="v-desc">本版本重構雙耳拍頻與 NREM 睡眠實驗室獨立區域 UI、實作實時基頻切換音高滑移、徹底消除開頭 440Hz 俯衝陡降與餘弦平滑降頻曲線，並新增「關閉遮罩 (純拍頻)」選項。</div>
+            <div class="v-num" data-app-version>v0.9.0-beta</div>
+            <div class="v-desc">本版本重構資訊架構（音效工作室分頁化、計時器獨立、迷你控制台合併）、將三組計時器改為時間戳錨定以支援手機鎖屏、修補匯入備份的 XSS 風險，並完成手機端觸控與版面強化。</div>
           </div>
 
           <hr class="divider">
@@ -654,11 +700,11 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge minor">MINOR 次版本</span>
-              <span class="rule-text"><strong>v0.9.0</strong>：新增重大功能模組（如：新音效產生器、語音提示、行事曆同步）。</span>
+              <span class="rule-text"><strong>v0.9.0</strong>（當前）：資訊架構重構、時間戳錨定計時引擎、迷你控制台重新設計與手機端支援。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.8.11</strong>：雙耳拍頻 UI 重構、NREM 獨立區域、餘弦平滑降頻、440Hz 陡降修復與「無遮罩」純拍頻選項。</span>
+              <span class="rule-text"><strong>v0.9.1</strong>：後續 Bug 修復、CSS 響應式微調與音量參數校正。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>
@@ -688,29 +734,25 @@
   </div> <!-- Close .app-container -->
 </div> <!-- Close #pomodoroAppView -->
 
-  <!-- 迷你懸浮小方塊 (返回 My Tool List 主介面時右下角背景執行微型顯示) -->
-  <div id="miniFloatingWidget" class="mini-floating-widget hidden" title="點擊返回番茄鐘與雙耳拍頻工具頁面">
-    <div class="mini-widget-pulse"></div>
-    <span id="miniWidgetIcon" class="mini-widget-icon">🍅</span>
-    <div class="mini-widget-info">
-      <div id="miniWidgetStatusText" class="mini-widget-status">🎯 專注 25:00</div>
-      <div id="miniWidgetSubText" class="mini-widget-sub">背景持續執行中</div>
-    </div>
-    <button id="miniWidgetPlayPauseBtn" class="btn-mini-play" title="快速暫停/繼續">▶️</button>
-  </div>
+  <!-- 背景執行迷你控制台 (工具列表頁右下角，計時與音效合併為單一面板) -->
+  <div id="miniFloatingWidget" class="mini-dock hidden" role="region" aria-label="背景執行狀態">
+    <button id="miniWidgetOpenBtn" class="mini-dock-open" title="返回番茄鐘與雙耳拍頻工具">
+      <span class="mini-ring-wrapper">
+        <svg class="mini-ring-svg" viewBox="0 0 36 36" aria-hidden="true">
+          <path class="mini-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path id="miniRingProgress" class="mini-ring-progress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+        </svg>
+        <span id="miniWidgetIcon" class="mini-ring-icon">🍅</span>
+      </span>
+      <span class="mini-dock-info">
+        <span id="miniWidgetStatusText" class="mini-dock-status">🎯 專注 25:00</span>
+        <span id="miniWidgetSubText" class="mini-dock-sub">背景持續執行中</span>
+      </span>
+    </button>
 
-  <!-- 左下角倒數計時進度與音效發聲資訊列 -->
-  <div id="miniFloatingLeftBar" class="mini-floating-left-bar hidden" title="點擊返回番茄鐘與雙耳拍頻工具頁面">
-    <div class="mini-progress-ring-wrapper">
-      <svg class="mini-ring-svg" viewBox="0 0 36 36">
-        <path class="mini-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-        <path id="miniRingProgress" class="mini-ring-progress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-      </svg>
-      <span id="miniProgressPctText" class="mini-progress-pct">0%</span>
-    </div>
-    <div class="mini-left-info">
-      <div id="miniLeftTitleText" class="mini-left-title">🎯 專注 25:00</div>
-      <div id="miniLeftAudioText" class="mini-left-audio">🧠 Alpha (α) 10Hz 拍頻發聲中</div>
+    <div class="mini-dock-actions">
+      <button id="miniWidgetPlayPauseBtn" class="mini-dock-btn hidden" title="暫停" aria-label="暫停">⏸️</button>
+      <button id="miniWidgetAudioBtn" class="mini-dock-btn hidden" title="關閉所有音效" aria-label="關閉所有音效">🔇</button>
     </div>
   </div>
 

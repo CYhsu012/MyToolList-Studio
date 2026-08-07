@@ -8,6 +8,11 @@
   // --------------------------------------------------------------------------
   // 1. App State & LocalStorage Configuration
   // --------------------------------------------------------------------------
+  // Single source of truth for the version string. Every place that shows it
+  // carries data-app-version and is stamped at boot, so the tool-list badge
+  // can no longer drift out of sync with the app header.
+  const APP_VERSION = 'v0.9.0-beta';
+
   const STORAGE_KEYS = {
     SETTINGS: 'pomoflow_settings',
     TASKS: 'pomoflow_tasks',
@@ -27,9 +32,10 @@
     theme: 'dark-glass'
   };
 
-  // Initial State
-  let settings = loadFromStorage(STORAGE_KEYS.SETTINGS, defaultSettings);
-  let tasks = loadFromStorage(STORAGE_KEYS.TASKS, [
+  // Initial State. Everything from localStorage goes through the same
+  // sanitisers as an imported backup — stored data is equally untrusted.
+  let settings = sanitizeSettings(loadFromStorage(STORAGE_KEYS.SETTINGS, defaultSettings));
+  let tasks = sanitizeTasks(loadFromStorage(STORAGE_KEYS.TASKS, [
     {
       id: 'task-1',
       title: '了解並使用 PomodoroFlow 番茄鐘',
@@ -40,13 +46,13 @@
       isDone: false,
       createdAt: Date.now()
     }
-  ]);
+  ]));
   let activeTaskId = loadFromStorage(STORAGE_KEYS.ACTIVE_TASK_ID, 'task-1');
-  let stats = loadFromStorage(STORAGE_KEYS.STATS, {
+  let stats = sanitizeStats(loadFromStorage(STORAGE_KEYS.STATS, {
     history: {}, // 'YYYY-MM-DD': { count: 0, minutes: 0 }
     streak: 0,
     lastActiveDate: null
-  });
+  }));
 
   // Timer State
   let timerMode = 'work'; // 'work' | 'shortBreak' | 'longBreak'
@@ -55,6 +61,9 @@
   let secondsLeft = settings.workTime * 60;
   let totalSeconds = settings.workTime * 60;
   let completedCycles = 0;
+  // Wall-clock deadline. Interval ticks only sample this — they never count
+  // down themselves, so throttled/backgrounded tabs cannot lose time.
+  let timerEndsAt = null;
 
   // Active Task Filter
   let currentFilter = 'all';
@@ -69,6 +78,9 @@
       this.ambientSourceNodes = [];
       this.currentAmbient = 'none';
       this.ambientVolume = 0.4;
+      // Each fade-out owns its own stop timeout, so a later stop can never orphan
+      // an earlier call's oscillators by cancelling their scheduled stop.
+      this.pendingBinauralStops = new Set();
     }
 
     initCtx() {
@@ -418,6 +430,7 @@
       const beatToneGainNode = this.ctx.createGain();
       beatToneGainNode.gain.setValueAtTime(beatToneRatio, now);
       beatToneGainNode.connect(this.binauralMasterGain);
+      this.binauralBeatGainNode = beatToneGainNode;
 
       // Calculate Left & Right pure sine frequencies:
       const fLeft = safeBaseFreq - (beatFreq / 2.0);
@@ -456,8 +469,10 @@
         merger.connect(beatToneGainNode);
       }
 
-      // Comfort Masking Layer (Pink Noise or Brown Noise)
-      if (enableMasking) {
+      // Comfort Masking Layer (Pink Noise or Brown Noise).
+      // Always built, then gated by its own gain node, so the comfort-masking
+      // checkbox can fade it in and out live instead of forcing a restart.
+      {
         const bufferSize = this.ctx.sampleRate * 2;
         const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = noiseBuffer.getChannelData(0);
@@ -492,7 +507,8 @@
         this.binauralMaskingNoise.loop = true;
 
         const maskGainNode = this.ctx.createGain();
-        maskGainNode.gain.setValueAtTime(maskNoiseRatio, now);
+        maskGainNode.gain.setValueAtTime(enableMasking ? maskNoiseRatio : 0.0001, now);
+        this.binauralMaskGainNode = maskGainNode;
 
         const maskFilter = this.ctx.createBiquadFilter();
         maskFilter.type = 'lowpass';
@@ -555,6 +571,31 @@
       }
     }
 
+    // Fade the comfort masking layer in/out without restarting the oscillators,
+    // rebalancing the beat tone against the 25:75 acoustic golden ratio.
+    setBinauralMasking(enabled, rampSeconds = 0.35) {
+      if (!this.ctx || !this.binauralBeatGainNode || !this.binauralMaskGainNode) return false;
+
+      const now = this.ctx.currentTime;
+      const targets = [
+        [this.binauralBeatGainNode, enabled ? 0.25 : 0.8],
+        [this.binauralMaskGainNode, enabled ? 0.75 : 0.0001]
+      ];
+
+      targets.forEach(([node, target]) => {
+        const safeTarget = Math.max(0.0001, target);
+        try {
+          node.gain.cancelScheduledValues(now);
+          node.gain.setValueAtTime(Math.max(0.0001, node.gain.value), now);
+          node.gain.linearRampToValueAtTime(safeTarget, now + rampSeconds);
+        } catch (e) {
+          try { node.gain.setValueAtTime(safeTarget, now); } catch (err) {}
+        }
+      });
+
+      return true;
+    }
+
     setBinauralVolume(volumePct) {
       if (this.binauralMasterGain && this.ctx) {
         const targetVol = (volumePct / 100) * 0.4;
@@ -563,11 +604,6 @@
     }
 
     stopBinauralBeats(fadeSeconds = 0.5) {
-      if (this.stopBinauralTimeout) {
-        clearTimeout(this.stopBinauralTimeout);
-        this.stopBinauralTimeout = null;
-      }
-
       const leftOsc = this.binauralLeftOsc;
       const rightOsc = this.binauralRightOsc;
       const maskingNoise = this.binauralMaskingNoise;
@@ -577,28 +613,40 @@
       this.binauralLeftOsc = null;
       this.binauralRightOsc = null;
       this.binauralMaskingNoise = null;
+      this.binauralBeatGainNode = null;
+      this.binauralMaskGainNode = null;
       this.currentFLeft = null;
       this.currentFRight = null;
 
       if (!masterGain || !this.ctx) return;
 
-      if (fadeSeconds <= 0) {
+      // Tear down exactly the nodes captured above, never whatever is current.
+      const hardStop = () => {
         if (leftOsc) try { leftOsc.stop(); } catch(e){}
         if (rightOsc) try { rightOsc.stop(); } catch(e){}
         if (maskingNoise) try { maskingNoise.stop(); } catch(e){}
         try { masterGain.disconnect(); } catch(e){}
-      } else {
-        const now = this.ctx.currentTime;
-        try {
-          masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
-        } catch (e) {}
-        this.stopBinauralTimeout = setTimeout(() => {
-          if (leftOsc) try { leftOsc.stop(); } catch(e){}
-          if (rightOsc) try { rightOsc.stop(); } catch(e){}
-          if (maskingNoise) try { maskingNoise.stop(); } catch(e){}
-          try { masterGain.disconnect(); } catch(e){}
-        }, fadeSeconds * 1000 + 50);
+      };
+
+      if (fadeSeconds <= 0) {
+        hardStop();
+        return;
       }
+
+      const now = this.ctx.currentTime;
+      try {
+        // Anchor at the live value first, otherwise a still-pending fade-in ramp
+        // outlives this ramp and pulls the gain back up to full volume.
+        masterGain.gain.cancelScheduledValues(now);
+        masterGain.gain.setValueAtTime(Math.max(0.0001, masterGain.gain.value), now);
+        masterGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
+      } catch (e) {}
+
+      const timeoutId = setTimeout(() => {
+        hardStop();
+        this.pendingBinauralStops.delete(timeoutId);
+      }, fadeSeconds * 1000 + 50);
+      this.pendingBinauralStops.add(timeoutId);
     }
   }
 
@@ -615,15 +663,13 @@
     openPomodoroToolCard: document.getElementById('openPomodoroToolCard'),
     backToToolListBtn: document.getElementById('backToToolListBtn'),
     miniFloatingWidget: document.getElementById('miniFloatingWidget'),
+    miniWidgetOpenBtn: document.getElementById('miniWidgetOpenBtn'),
     miniWidgetIcon: document.getElementById('miniWidgetIcon'),
     miniWidgetStatusText: document.getElementById('miniWidgetStatusText'),
     miniWidgetSubText: document.getElementById('miniWidgetSubText'),
     miniWidgetPlayPauseBtn: document.getElementById('miniWidgetPlayPauseBtn'),
-    miniFloatingLeftBar: document.getElementById('miniFloatingLeftBar'),
+    miniWidgetAudioBtn: document.getElementById('miniWidgetAudioBtn'),
     miniRingProgress: document.getElementById('miniRingProgress'),
-    miniProgressPctText: document.getElementById('miniProgressPctText'),
-    miniLeftTitleText: document.getElementById('miniLeftTitleText'),
-    miniLeftAudioText: document.getElementById('miniLeftAudioText'),
     deepSleepStudioBlock: document.getElementById('deepSleepStudioBlock'),
     dsStatusBadge: document.getElementById('dsStatusBadge'),
     dsDurationChips: document.querySelectorAll('.ds-duration-chip'),
@@ -652,6 +698,17 @@
     closeVersionModalBtn: document.getElementById('closeVersionModalBtn'),
     closeVersionModalFooterBtn: document.getElementById('closeVersionModalFooterBtn'),
 
+    // Workspace Tabs UI (任務清單 / 音效工作室)
+    workspaceTabs: document.querySelectorAll('.workspace-tab'),
+    workspacePanels: document.querySelectorAll('[data-workspace-panel]'),
+    workspaceAudioDot: document.getElementById('workspaceAudioDot'),
+
+    // Audio Studio Sub-Tabs UI
+    audioSubtabBtns: document.querySelectorAll('.audio-subtab-btn'),
+    audioSubpanels: document.querySelectorAll('[data-audiotab-panel]'),
+    binauralAdvancedToggle: document.getElementById('binauralAdvancedToggle'),
+    binauralAdvancedPanel: document.getElementById('binauralAdvancedPanel'),
+
     // Ambient UI
     ambientBtns: document.querySelectorAll('.ambient-btn'),
     ambientVolume: document.getElementById('ambientVolume'),
@@ -670,6 +727,7 @@
     carrierFreqSelect: document.getElementById('carrierFreqSelect'),
     binauralMathText: document.getElementById('binauralMathText'),
     binauralPerceivedText: document.getElementById('binauralPerceivedText'),
+    binauralRatioText: document.getElementById('binauralRatioText'),
     comfortMaskingToggle: document.getElementById('comfortMaskingToggle'),
     binauralVolSlider: document.getElementById('binauralVolSlider'),
     binauralVolVal: document.getElementById('binauralVolVal'),
@@ -751,7 +809,6 @@
       if (DOM.toolListView) DOM.toolListView.classList.add('hidden');
       if (DOM.pomodoroAppView) DOM.pomodoroAppView.classList.remove('hidden');
       if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.add('hidden');
-      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.add('hidden');
     }
   }
 
@@ -778,94 +835,117 @@
     paused: false,
     durationMins: 30,
     elapsedSec: 0,
+    startedAt: null,
+    fadeStarted: false,
     intervalId: null,
     maskingType: 'brown' // 'brown' | 'forestRain' | 'youtube'
   };
 
   function checkAndUpdateMiniWidget() {
-    if (activeView !== 'toolList') return;
-
     const isTimerActive = timerState === 'running' || timerState === 'paused';
     const isBinauralActive = (binauralState && binauralState.enabled) || (deepSleepState && deepSleepState.running);
     const isAmbientActive = audioEngine && audioEngine.currentAmbient !== 'none';
 
+    // Surface a pulse on the workspace tab so audio stays discoverable while
+    // the task list is showing. Runs in every view, unlike the mini widget.
+    if (DOM.workspaceAudioDot) {
+      DOM.workspaceAudioDot.classList.toggle('hidden', !(isBinauralActive || isAmbientActive));
+    }
+
+    if (activeView !== 'toolList') return;
+
     if (isTimerActive || isBinauralActive || isAmbientActive) {
       if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.remove('hidden');
-      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.remove('hidden');
       updateMiniWidgetUI();
     } else {
       if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.add('hidden');
-      if (DOM.miniFloatingLeftBar) DOM.miniFloatingLeftBar.classList.add('hidden');
     }
   }
 
-  function updateMiniWidgetUI() {
-    // 1. Update Right Mini Floating Widget (Quick Controls)
-    if (DOM.miniWidgetStatusText) {
-      if (deepSleepState && deepSleepState.running) {
-        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🌙';
-        const remText = DOM.dsRemainingTimeText ? DOM.dsRemainingTimeText.textContent : '';
-        DOM.miniWidgetStatusText.textContent = `🌙 助眠剩餘 ${remText}`;
-        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = deepSleepState.paused ? '已暫停' : 'NREM 慢波降頻中';
-        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = deepSleepState.paused ? '▶️' : '⏸️';
-      } else if (timerState === 'running' || timerState === 'paused') {
-        const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
-        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = timerMode === 'work' ? '🍅' : '☕';
-        DOM.miniWidgetStatusText.textContent = `${modeLabel} ${formatTime(secondsLeft)}`;
-        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = timerState === 'running' ? '計時執行中...' : '暫停中';
-        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = timerState === 'running' ? '⏸️' : '▶️';
-      } else if (binauralState && binauralState.enabled) {
-        const waveName = wavePresets[binauralState.waveMode]?.name || 'Alpha';
-        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🧠';
-        DOM.miniWidgetStatusText.textContent = `拍頻 ${waveName} 發聲中`;
-        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = '雙耳腦波同步執行中';
-        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = '🔊';
-      } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
-        if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = '🔊';
-        DOM.miniWidgetStatusText.textContent = `白噪音 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : ''}`;
-        if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = '自然聲學播放中';
-        if (DOM.miniWidgetPlayPauseBtn) DOM.miniWidgetPlayPauseBtn.textContent = '🔊';
-      }
-    }
+  // Which session does the dock's play/pause act on? Whatever is actually
+  // running — the old widget always called toggleTimer(), so pressing it while
+  // NREM sleep was playing silently started the pomodoro instead.
+  function getMiniPrimaryTarget() {
+    if (deepSleepState && (deepSleepState.running || deepSleepState.paused)) return 'deepSleep';
+    if (timerState === 'running' || timerState === 'paused') return 'timer';
+    return null;
+  }
 
-    // 2. Update Left Mini Floating Bar (Progress % & Sound Summary)
+  function isAnyAudioPlaying() {
+    return (binauralState && binauralState.enabled)
+      || (deepSleepState && deepSleepState.running)
+      || (audioEngine && audioEngine.currentAmbient !== 'none');
+  }
+
+  // One dock, three slots: ring = progress of the primary session,
+  // status = what it is + time left, sub = what you are hearing.
+  function updateMiniWidgetUI() {
+    const target = getMiniPrimaryTarget();
+    const dsRunning = deepSleepState && (deepSleepState.running || deepSleepState.paused);
+
+    // --- Ring progress ---
     let progressPct = 0;
-    if (deepSleepState && deepSleepState.running) {
+    if (target === 'deepSleep') {
       const totalSec = deepSleepState.durationMins * 60;
       progressPct = totalSec > 0 ? Math.min(100, Math.max(0, Math.round((deepSleepState.elapsedSec / totalSec) * 100))) : 0;
-    } else {
+    } else if (target === 'timer') {
       progressPct = totalSeconds > 0 ? Math.min(100, Math.max(0, Math.round(((totalSeconds - secondsLeft) / totalSeconds) * 100))) : 0;
     }
-
     if (DOM.miniRingProgress) {
       DOM.miniRingProgress.setAttribute('stroke-dasharray', `${progressPct}, 100`);
     }
-    if (DOM.miniProgressPctText) {
-      DOM.miniProgressPctText.textContent = `${progressPct}%`;
-    }
 
-    if (DOM.miniLeftTitleText) {
-      if (deepSleepState && deepSleepState.running) {
-        const remText = DOM.dsRemainingTimeText ? DOM.dsRemainingTimeText.textContent : '';
-        DOM.miniLeftTitleText.textContent = `🌙 NREM 助眠 ${remText} (${progressPct}%)`;
-      } else {
-        const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
-        DOM.miniLeftTitleText.textContent = `${modeLabel} ${formatTime(secondsLeft)} (${progressPct}%)`;
+    // --- Primary line: the session that owns the dock ---
+    let icon = '🔊';
+    let status = '音效播放中';
+    if (target === 'deepSleep') {
+      icon = '🌙';
+      const remText = DOM.dsRemainingTimeText ? DOM.dsRemainingTimeText.textContent : '';
+      status = deepSleepState.paused ? `🌙 助眠已暫停 ${remText}` : `🌙 助眠剩餘 ${remText}`;
+    } else if (target === 'timer') {
+      const modeLabel = timerMode === 'work' ? '🎯 專注' : (timerMode === 'shortBreak' ? '☕ 短休' : '🌴 長休');
+      icon = timerMode === 'work' ? '🍅' : '☕';
+      status = `${modeLabel} ${formatTime(secondsLeft)}${timerState === 'paused' ? '（已暫停）' : ''}`;
+    } else if (binauralState && binauralState.enabled) {
+      icon = '🧠';
+      status = `🧠 ${wavePresets[binauralState.waveMode]?.name || 'Alpha'} 拍頻發聲中`;
+    } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
+      icon = '🔊';
+      status = `🔊 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : '環境音'}`;
+    }
+    if (DOM.miniWidgetIcon) DOM.miniWidgetIcon.textContent = icon;
+    if (DOM.miniWidgetStatusText) DOM.miniWidgetStatusText.textContent = status;
+
+    // --- Secondary line: always the audio summary, never a repeat of above ---
+    let sub = '🔇 音效未開啟';
+    if (dsRunning) {
+      const liveHz = DOM.dsLiveHzText ? DOM.dsLiveHzText.textContent : '8.0 Hz';
+      sub = `🌙 降頻至 ${liveHz}`;
+    } else if (binauralState && binauralState.enabled) {
+      sub = `🧠 ${wavePresets[binauralState.waveMode]?.name || 'Alpha'}（音量 ${binauralState.volume}%）`;
+    } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
+      sub = `🔊 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : '環境音'}`;
+    }
+    // When the dock is led by audio the primary line already says it — use the
+    // sub line for the timer instead so the two lines never duplicate.
+    if (!target && sub === status) sub = '背景持續執行中';
+    if (DOM.miniWidgetSubText) DOM.miniWidgetSubText.textContent = sub;
+
+    // --- Controls: only show what can actually be acted on ---
+    if (DOM.miniWidgetPlayPauseBtn) {
+      const btn = DOM.miniWidgetPlayPauseBtn;
+      btn.classList.toggle('hidden', !target);
+      if (target) {
+        const paused = target === 'deepSleep' ? deepSleepState.paused : timerState === 'paused';
+        const noun = target === 'deepSleep' ? '助眠引導' : '計時';
+        btn.textContent = paused ? '▶️' : '⏸️';
+        btn.title = `${paused ? '繼續' : '暫停'}${noun}`;
+        btn.setAttribute('aria-label', btn.title);
       }
     }
 
-    if (DOM.miniLeftAudioText) {
-      if (deepSleepState && deepSleepState.running) {
-        const liveHz = DOM.dsLiveHzText ? DOM.dsLiveHzText.textContent : '8.0 Hz';
-        DOM.miniLeftAudioText.textContent = `🌙 降頻至 ${liveHz} (120Hz低載波+棕色音)`;
-      } else if (binauralState && binauralState.enabled) {
-        const waveName = wavePresets[binauralState.waveMode]?.name || 'Alpha';
-        DOM.miniLeftAudioText.textContent = `🧠 拍頻 ${waveName} (音量 ${binauralState.volume}%)`;
-      } else if (audioEngine && audioEngine.currentAmbient !== 'none') {
-        DOM.miniLeftAudioText.textContent = `🔊 白噪音 ${DOM.currentAmbientLabel ? DOM.currentAmbientLabel.textContent : ''}`;
-      } else {
-        DOM.miniLeftAudioText.textContent = `🔇 音效未開啟`;
-      }
+    if (DOM.miniWidgetAudioBtn) {
+      DOM.miniWidgetAudioBtn.classList.toggle('hidden', !isAnyAudioPlaying());
     }
   }
 
@@ -873,6 +953,11 @@
   // 5. Timer Logic & Functions
   // --------------------------------------------------------------------------
   function initTimer() {
+    document.querySelectorAll('[data-app-version]').forEach(el => {
+      el.textContent = APP_VERSION;
+    });
+    reconcileStreak();
+    syncTimerButtons();
     updateTimerDisplay();
     updateThemeUI();
     renderTasks();
@@ -890,8 +975,10 @@
   function switchMode(newMode) {
     timerMode = newMode;
     pauseTimer();
+    timerState = 'idle';
     totalSeconds = getDurationForMode(newMode);
     secondsLeft = totalSeconds;
+    syncTimerButtons();
 
     DOM.modeTabs.forEach(tab => {
       tab.classList.toggle('active', tab.dataset.mode === newMode);
@@ -917,38 +1004,68 @@
     }
   }
 
+  // Keep every start/pause affordance (main bar, zen overlay, mini widget) in
+  // agreement with the actual timer state.
+  function syncTimerButtons() {
+    const running = timerState === 'running';
+    const label = running ? '暫停' : (timerState === 'paused' ? '繼續專注' : '開始專注');
+
+    if (DOM.startPauseText) DOM.startPauseText.textContent = label;
+    if (DOM.zenStartPauseBtn) DOM.zenStartPauseBtn.textContent = label;
+    if (DOM.playPauseIcon) {
+      DOM.playPauseIcon.innerHTML = running
+        ? `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`
+        : `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+    }
+  }
+
   function startTimer() {
     if (timerState === 'running') return;
+    if (secondsLeft <= 0) return;
+
     audioEngine.initCtx();
     timerState = 'running';
+    timerEndsAt = Date.now() + secondsLeft * 1000;
 
-    DOM.startPauseText.textContent = '暫停';
-    DOM.zenStartPauseBtn.textContent = '暫停';
-    DOM.playPauseIcon.innerHTML = `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`;
+    syncTimerButtons();
 
-    timerInterval = setInterval(() => {
-      if (secondsLeft > 0) {
-        secondsLeft--;
-        updateTimerDisplay();
-      } else {
-        onTimerComplete();
-      }
-    }, 1000);
+    clearInterval(timerInterval);
+    // Sample 4x/second so the visible second flips promptly after a resync.
+    timerInterval = setInterval(syncTimerFromClock, 250);
+  }
+
+  // Single source of truth: remaining time is always derived from the deadline.
+  function syncTimerFromClock() {
+    if (timerState !== 'running' || timerEndsAt === null) return;
+
+    const remaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+    if (remaining !== secondsLeft) {
+      secondsLeft = remaining;
+      updateTimerDisplay();
+    }
+    if (remaining <= 0) onTimerComplete();
   }
 
   function pauseTimer() {
-    timerState = 'paused';
+    if (timerState === 'running') {
+      secondsLeft = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+      timerState = 'paused';
+    }
+
     clearInterval(timerInterval);
     timerInterval = null;
+    timerEndsAt = null;
 
-    DOM.startPauseText.textContent = '開始專注';
-    DOM.zenStartPauseBtn.textContent = '開始專注';
-    DOM.playPauseIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+    syncTimerButtons();
   }
 
   function resetTimer() {
     pauseTimer();
+    // A reset timer is idle, not paused — otherwise the background mini widget
+    // keeps advertising a session that isn't actually under way.
+    timerState = 'idle';
     secondsLeft = totalSeconds;
+    syncTimerButtons();
     updateTimerDisplay();
   }
 
@@ -970,9 +1087,11 @@
       }
     }
 
-    // Auto Mode Switch Logic
+    // Auto Mode Switch Logic.
+    // completedCycles > 0 guard: skipping the very first pomodoro leaves the
+    // counter at 0, and 0 % 4 === 0 used to jump straight to a long break.
     if (timerMode === 'work') {
-      if (completedCycles % 4 === 0) {
+      if (completedCycles > 0 && completedCycles % 4 === 0) {
         switchMode('longBreak');
       } else {
         switchMode('shortBreak');
@@ -987,9 +1106,7 @@
   }
 
   function updateTimerDisplay() {
-    const mins = Math.floor(secondsLeft / 60);
-    const secs = secondsLeft % 60;
-    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const formatted = formatTime(secondsLeft);
 
     DOM.timeText.textContent = formatted;
     DOM.zenTimeText.textContent = formatted;
@@ -1051,22 +1168,27 @@
         health: '🏃 健康'
       };
 
+      // Every interpolated value is escaped. id/priority reach attribute and
+      // class contexts, so an unescaped quote there is an XSS hole.
+      const safeId = escapeHTML(task.id);
+      const priorityClass = ['high', 'medium', 'low'].includes(task.priority) ? task.priority : 'medium';
+
       itemEl.innerHTML = `
         <div class="task-left">
-          <input type="checkbox" class="task-checkbox" ${task.isDone ? 'checked' : ''} data-id="${task.id}">
+          <input type="checkbox" class="task-checkbox" ${task.isDone ? 'checked' : ''} data-id="${safeId}">
           <div class="task-info">
             <div class="task-title">${escapeHTML(task.title)}</div>
             <div class="task-meta">
               <span class="category-tag">${categoryNames[task.category] || '標籤'}</span>
-              <span class="priority-dot priority-${task.priority}"></span>
+              <span class="priority-dot priority-${priorityClass}"></span>
             </div>
           </div>
         </div>
         <div class="task-right">
-          <div class="pomo-count">🍅 ${task.completed} / ${task.estimated}</div>
+          <div class="pomo-count">🍅 ${escapeHTML(task.completed)} / ${escapeHTML(task.estimated)}</div>
           <div class="task-actions">
-            <button class="action-btn edit-task-btn" data-id="${task.id}" title="編輯">✏️</button>
-            <button class="action-btn delete-task-btn" data-id="${task.id}" title="刪除">🗑️</button>
+            <button class="action-btn edit-task-btn" data-id="${safeId}" title="編輯">✏️</button>
+            <button class="action-btn delete-task-btn" data-id="${safeId}" title="刪除">🗑️</button>
           </div>
         </div>
       `;
@@ -1236,6 +1358,24 @@
     stats.lastActiveDate = todayStr;
   }
 
+  // A streak is only alive if the last activity was today or yesterday.
+  // Without this the badge kept showing a number earned months ago.
+  function reconcileStreak() {
+    if (!stats.lastActiveDate) {
+      stats.streak = 0;
+      return;
+    }
+    const today = getTodayDateString();
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = formatDateString(y);
+
+    if (stats.lastActiveDate !== today && stats.lastActiveDate !== yesterday) {
+      stats.streak = 0;
+      saveToStorage(STORAGE_KEYS.STATS, stats);
+    }
+  }
+
   function updateStreakUI() {
     DOM.streakCount.textContent = stats.streak || 0;
   }
@@ -1275,12 +1415,28 @@
     }, 100);
   }
 
+  // Size the backing store to the container × devicePixelRatio, then work in
+  // CSS pixels. A fixed 500px canvas was clipped inside phone-width modals.
+  function prepareCanvas(canvas, cssHeight = 200) {
+    const dpr = window.devicePixelRatio || 1;
+    const host = canvas.parentElement;
+    const avail = host ? host.clientWidth - 32 : 300;
+    const cssWidth = Math.max(240, Math.floor(avail));
+
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, width: cssWidth, height: cssHeight };
+  }
+
   function renderTrendChart() {
     const canvas = document.getElementById('trendChartCanvas');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    const { ctx, width, height } = prepareCanvas(canvas);
 
     ctx.clearRect(0, 0, width, height);
 
@@ -1298,12 +1454,14 @@
 
     const maxMin = Math.max(...minutesData, 60);
     const padding = 30;
-    const barWidth = 36;
     const chartHeight = height - padding * 2;
+    // Bars scale with the canvas so seven of them always fit on a phone.
+    const slot = (width - padding * 2) / 7;
+    const barWidth = Math.max(12, Math.min(36, slot - 8));
 
     // Draw Bars
     minutesData.forEach((mins, idx) => {
-      const x = padding + idx * ((width - padding * 2) / 7) + 12;
+      const x = padding + idx * slot + (slot - barWidth) / 2;
       const barH = (mins / maxMin) * chartHeight;
       const y = height - padding - barH;
 
@@ -1333,9 +1491,7 @@
   function renderCategoryChart() {
     const canvas = document.getElementById('categoryChartCanvas');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    const { ctx, width, height } = prepareCanvas(canvas);
 
     ctx.clearRect(0, 0, width, height);
 
@@ -1369,9 +1525,12 @@
       return;
     }
 
-    const centerX = 140;
+    // Proportional geometry — the donut and legend were pinned to pixel
+    // positions that fell outside the canvas at phone widths.
+    const donutBox = Math.min(width * 0.42, 160);
+    const centerX = donutBox / 2 + 10;
     const centerY = height / 2;
-    const radius = 70;
+    const radius = Math.max(36, Math.min(donutBox / 2 - 6, height / 2 - 14));
     let startAngle = 0;
 
     Object.keys(catCounts).forEach(cat => {
@@ -1392,26 +1551,29 @@
     // Donut hole
     ctx.fillStyle = '#1e293b';
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 40, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, radius * 0.57, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw Legend on right side
-    let legendY = 45;
-    Object.keys(catCounts).forEach(cat => {
+    // Draw Legend to the right of the donut, vertically centred
+    const entries = Object.keys(catCounts);
+    const rowH = Math.min(32, height / (entries.length + 1));
+    const legendX = centerX + radius + 16;
+    const fontSize = width < 320 ? 11 : 13;
+    let legendY = centerY - (entries.length * rowH) / 2;
+
+    entries.forEach(cat => {
       const count = catCounts[cat];
       const pct = Math.round((count / total) * 100);
 
-      // Color Box
       ctx.fillStyle = colors[cat];
-      ctx.fillRect(260, legendY, 14, 14);
+      ctx.fillRect(legendX, legendY, 12, 12);
 
-      // Text
       ctx.fillStyle = '#f8fafc';
-      ctx.font = '13px Inter';
+      ctx.font = `${fontSize}px Inter`;
       ctx.textAlign = 'left';
-      ctx.fillText(`${catLabels[cat]}: ${count} 個 (${pct}%)`, 285, legendY + 12);
+      ctx.fillText(`${catLabels[cat]}: ${count} (${pct}%)`, legendX + 18, legendY + 11);
 
-      legendY += 32;
+      legendY += rowH;
     });
   }
 
@@ -1442,8 +1604,14 @@
     saveToStorage(STORAGE_KEYS.SETTINGS, settings);
     if (DOM.settingsModal) closeModal(DOM.settingsModal);
 
-    // Reset current timer with new settings
-    switchMode(timerMode);
+    // Only re-arm the clock when nothing is under way. Rewriting secondsLeft
+    // mid-session used to silently discard the user's progress; new durations
+    // now take effect from the next mode switch instead.
+    if (timerState === 'idle') {
+      totalSeconds = getDurationForMode(timerMode);
+      secondsLeft = totalSeconds;
+    }
+    updateTimerDisplay();
     renderDailyGoal();
   }
 
@@ -1469,16 +1637,73 @@
     downloadAnchor.remove();
   }
 
+  // --- Backup sanitisers (also used to repair corrupted localStorage) ---
+  // Declared as functions and using inline literals so they are safe to call
+  // from the top-of-IIFE state initialisation, before any const is evaluated.
+  function clampInt(val, min, max, fallback) {
+    const n = parseInt(val, 10);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  }
+
+  function sanitizeSettings(raw) {
+    const s = (raw && typeof raw === 'object') ? raw : {};
+    return {
+      workTime: clampInt(s.workTime, 1, 120, defaultSettings.workTime),
+      shortBreakTime: clampInt(s.shortBreakTime, 1, 60, defaultSettings.shortBreakTime),
+      longBreakTime: clampInt(s.longBreakTime, 1, 60, defaultSettings.longBreakTime),
+      dailyGoal: clampInt(s.dailyGoal, 1, 50, defaultSettings.dailyGoal),
+      autoStartBreaks: s.autoStartBreaks === true,
+      autoStartWork: s.autoStartWork === true,
+      alertSound: ['zen', 'marimba', 'digital', 'chime'].includes(s.alertSound) ? s.alertSound : defaultSettings.alertSound,
+      theme: ['dark-glass', 'emerald-forest', 'sunset-glow', 'cyberpunk-neon'].includes(s.theme) ? s.theme : defaultSettings.theme
+    };
+  }
+
+  function sanitizeTasks(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(t => t && typeof t === 'object').map((t, i) => ({
+      id: String(t.id == null ? `task-${Date.now()}-${i}` : t.id),
+      title: String(t.title == null ? '未命名任務' : t.title).slice(0, 200),
+      category: ['work', 'study', 'design', 'health'].includes(t.category) ? t.category : 'work',
+      priority: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium',
+      estimated: clampInt(t.estimated, 1, 20, 1),
+      completed: clampInt(t.completed, 0, 9999, 0),
+      isDone: t.isDone === true,
+      createdAt: Number.isFinite(+t.createdAt) ? +t.createdAt : Date.now()
+    }));
+  }
+
+  function sanitizeStats(raw) {
+    const s = (raw && typeof raw === 'object') ? raw : {};
+    const history = {};
+    if (s.history && typeof s.history === 'object') {
+      Object.keys(s.history).forEach(k => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+        const d = s.history[k] || {};
+        history[k] = { count: clampInt(d.count, 0, 99999, 0), minutes: clampInt(d.minutes, 0, 999999, 0) };
+      });
+    }
+    return {
+      history,
+      streak: clampInt(s.streak, 0, 99999, 0),
+      lastActiveDate: /^\d{4}-\d{2}-\d{2}$/.test(s.lastActiveDate) ? s.lastActiveDate : null
+    };
+  }
+
   function importBackupData(file) {
     const reader = new FileReader();
     reader.onload = function (e) {
       try {
         const imported = JSON.parse(e.target.result);
         if (imported.settings && imported.tasks && imported.stats) {
-          settings = imported.settings;
-          tasks = imported.tasks;
-          stats = imported.stats;
-          activeTaskId = imported.activeTaskId || (tasks.length > 0 ? tasks[0].id : null);
+          // Never trust a backup file wholesale — coerce every field to the
+          // shape the app expects instead of adopting the JSON as-is.
+          settings = sanitizeSettings(imported.settings);
+          tasks = sanitizeTasks(imported.tasks);
+          stats = sanitizeStats(imported.stats);
+          activeTaskId = tasks.some(t => t.id === imported.activeTaskId)
+            ? imported.activeTaskId
+            : (tasks.length > 0 ? tasks[0].id : null);
 
           saveToStorage(STORAGE_KEYS.SETTINGS, settings);
           saveToStorage(STORAGE_KEYS.TASKS, tasks);
@@ -1512,14 +1737,33 @@
     // Main Navigation & Mini Widget Events
     DOM.openPomodoroToolCard?.addEventListener('click', () => switchView('pomodoroApp'));
     DOM.backToToolListBtn?.addEventListener('click', () => switchView('toolList'));
-    DOM.miniFloatingWidget?.addEventListener('click', (e) => {
-      if (e.target.closest('#miniWidgetPlayPauseBtn')) return;
-      switchView('pomodoroApp');
+    // The dock's navigation target is its own button, so the action buttons are
+    // no longer overlapping click regions that need stopPropagation guards.
+    DOM.miniWidgetOpenBtn?.addEventListener('click', () => switchView('pomodoroApp'));
+
+    DOM.miniWidgetPlayPauseBtn?.addEventListener('click', () => {
+      const target = getMiniPrimaryTarget();
+      if (target === 'deepSleep') {
+        // startDeepSleepStudioEngine() toggles pause/resume internally.
+        DOM.dsStartPauseBtn?.click();
+      } else if (target === 'timer') {
+        toggleTimer();
+      }
+      checkAndUpdateMiniWidget();
     });
-    DOM.miniFloatingLeftBar?.addEventListener('click', () => switchView('pomodoroApp'));
-    DOM.miniWidgetPlayPauseBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleTimer();
+
+    DOM.miniWidgetAudioBtn?.addEventListener('click', () => {
+      // One button, one promise: silence everything currently making sound.
+      audioEngine.stopAmbientSound();
+      DOM.ambientBtns?.forEach(b => b.classList.toggle('active', b.dataset.sound === 'none'));
+      if (DOM.currentAmbientLabel) DOM.currentAmbientLabel.textContent = '已關閉';
+
+      audioEngine.stopBinauralBeats(1.0);
+      binauralState.enabled = false;
+      if (DOM.binauralToggle) DOM.binauralToggle.checked = false;
+
+      if (deepSleepState.running || deepSleepState.paused) DOM.dsResetBtn?.click();
+
       checkAndUpdateMiniWidget();
     });
 
@@ -1540,6 +1784,40 @@
     document.addEventListener('click', () => {
       audioEngine.initCtx();
     }, { once: true });
+
+    // Returning to a throttled tab: re-read the deadline immediately instead of
+    // waiting for the next sample, so the display never shows a stale time.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) syncTimerFromClock();
+    });
+
+    // Workspace Tab Switching (任務清單 / 音效工作室)
+    DOM.workspaceTabs?.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.workspace;
+        DOM.workspaceTabs.forEach(b => b.classList.toggle('active', b === btn));
+        DOM.workspacePanels.forEach(panel => {
+          panel.classList.toggle('hidden', panel.dataset.workspacePanel !== target);
+        });
+      });
+    });
+
+    // Audio Studio Sub-Tab Switching
+    DOM.audioSubtabBtns?.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.audiotab;
+        DOM.audioSubtabBtns.forEach(b => b.classList.toggle('active', b === btn));
+        DOM.audioSubpanels.forEach(panel => {
+          panel.classList.toggle('hidden', panel.dataset.audiotabPanel !== target);
+        });
+      });
+    });
+
+    // Binaural Advanced Settings Disclosure
+    DOM.binauralAdvancedToggle?.addEventListener('click', () => {
+      const isOpen = DOM.binauralAdvancedPanel.classList.toggle('hidden') === false;
+      DOM.binauralAdvancedToggle.setAttribute('aria-expanded', String(isOpen));
+    });
 
     // Ambient Noise Buttons
     DOM.ambientBtns?.forEach(btn => {
@@ -1591,9 +1869,10 @@
       if (videoId) {
         if (DOM.ytIframeWrapper) {
           DOM.ytIframeWrapper.innerHTML = `
-            <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0" 
-                    title="YouTube Audio Track" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&playsinline=1"
+                    title="YouTube Audio Track"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    playsinline
                     allowfullscreen>
             </iframe>
           `;
@@ -1616,6 +1895,12 @@
         DOM.ytPlayerContainer.classList.toggle('hidden');
       }
     });
+
+    // The YouTube track IS the masking layer. Synthesizing noise on top of it
+    // double-masks and is heard as stray white noise over the video audio.
+    function deepSleepUsesSynthMask() {
+      return deepSleepState.maskingType !== 'none' && deepSleepState.maskingType !== 'youtube';
+    }
 
     // Dedicated Binaural Beats Studio Logic (Strict Physical & Acoustic Algorithm)
     function startDeepSleepStudioEngine() {
@@ -1647,8 +1932,7 @@
       const totalSec = Math.round(deepSleepState.durationMins * 60);
 
       // 120Hz Low Carrier + Initial 8.0Hz Alpha + Selected Masking Noise (Brown Noise, Forest Rain, YouTube, or None)
-      const enableMasking = deepSleepState.maskingType !== 'none';
-      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, enableMasking, deepSleepState.maskingType || 'brown');
+      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType || 'brown');
       if (deepSleepState.maskingType === 'youtube') {
         DOM.loadYtBtn?.click();
       }
@@ -1666,18 +1950,28 @@
 
       const fadeSec = Math.min(180, Math.max(2, Math.round(totalSec * 0.2)));
 
-      deepSleepState.intervalId = setInterval(() => {
-        if (deepSleepState.paused) return;
+      // Wall-clock anchored, like the pomodoro timer. This session is meant to
+      // run with the phone screen off, where tick counting drifts the worst.
+      deepSleepState.startedAt = Date.now();
+      deepSleepState.fadeStarted = false;
 
-        deepSleepState.elapsedSec++;
-        const elapsed = deepSleepState.elapsedSec;
-        const remaining = totalSec - elapsed;
+      deepSleepState.intervalId = setInterval(() => {
+        if (deepSleepState.paused) {
+          // Hold the deadline still while paused.
+          deepSleepState.startedAt = Date.now() - deepSleepState.elapsedSec * 1000;
+          return;
+        }
+
+        deepSleepState.elapsedSec = Math.floor((Date.now() - deepSleepState.startedAt) / 1000);
+        const remaining = totalSec - deepSleepState.elapsedSec;
 
         updateDeepSleepMetricsUI(totalSec);
 
-        // Smooth Exponential Fade-Out during last phase
-        if (remaining === fadeSec) {
-          audioEngine.fadeBinauralMasterGain(fadeSec);
+        // Fire once on crossing the threshold — an equality test misses it
+        // entirely whenever a throttled tab skips over that exact second.
+        if (!deepSleepState.fadeStarted && remaining <= fadeSec && remaining > 0) {
+          deepSleepState.fadeStarted = true;
+          audioEngine.fadeBinauralMasterGain(remaining);
         }
 
         if (remaining <= 0) {
@@ -1700,6 +1994,11 @@
     }
 
     function stopDeepSleepStudioEngine(isCompleted = false) {
+      // Only tear down audio the sleep engine actually owns. updateBinauralEngineUI()
+      // calls this on every preset change, and unconditionally stopping here used to
+      // kill the user's YouTube track and double-stop the binaural graph.
+      const wasActive = deepSleepState.running || deepSleepState.paused;
+
       if (deepSleepState.intervalId) {
         clearInterval(deepSleepState.intervalId);
         deepSleepState.intervalId = null;
@@ -1717,8 +2016,10 @@
         DOM.dsRunInfoPanel.classList.add('hidden');
       }
 
-      audioEngine.stopBinauralBeats(0.5);
-      stopYouTubeTrack();
+      if (wasActive) {
+        audioEngine.stopBinauralBeats(0.5);
+        stopYouTubeTrack();
+      }
       checkAndUpdateMiniWidget();
     }
 
@@ -1770,6 +2071,13 @@
       });
     }
 
+    function updateBinauralRatioText() {
+      if (!DOM.binauralRatioText) return;
+      DOM.binauralRatioText.textContent = binauralState.comfortMasking
+        ? '純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）'
+        : '純拍頻 100%（遮罩已關閉，長時間聆聽較易耳疲勞）';
+    }
+
     function updateBinauralEngineUI() {
       const preset = wavePresets[binauralState.waveMode] || wavePresets.alpha;
       const deltaF = preset.deltaF;
@@ -1800,7 +2108,7 @@
       if (DOM.binauralVolVal) DOM.binauralVolVal.textContent = binauralState.volume;
       if (DOM.binauralMathText) DOM.binauralMathText.textContent = `載波 ${baseFreq}Hz | 左耳 ${fLeft.toFixed(1)}Hz / 右耳 ${fRight.toFixed(1)}Hz (頻差 Δf = ${deltaF}Hz)`;
       if (DOM.binauralPerceivedText) DOM.binauralPerceivedText.textContent = `感知音高 ${perceivedPitch}Hz（聽感呈現 ${deltaF}Hz 規律脈動 Tremolo 與頭腦中央相位鎖定感）`;
-      if (DOM.binauralRatioText) DOM.binauralRatioText.textContent = `純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）`;
+      updateBinauralRatioText();
 
       if (binauralState.enabled) {
         audioEngine.startBinauralBeats(baseFreq, deltaF, binauralState.volume, binauralState.comfortMasking, 'pink');
@@ -1870,8 +2178,7 @@
           stopYouTubeTrack();
         }
         if (deepSleepState.running) {
-          const enableMasking = deepSleepState.maskingType !== 'none';
-          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, enableMasking, deepSleepState.maskingType);
+          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType);
         }
       });
     });
@@ -1892,9 +2199,15 @@
 
     DOM.comfortMaskingToggle?.addEventListener('change', (e) => {
       binauralState.comfortMasking = e.target.checked;
-      if (binauralState.enabled) {
+      // Deep sleep owns its own masking choice (including "YouTube = no synth
+      // noise"), so this toggle must not reach into a running session.
+      if (deepSleepState.running || !binauralState.enabled) return;
+
+      // Adjust the live graph if one exists; only rebuild when it doesn't.
+      if (!audioEngine.setBinauralMasking(binauralState.comfortMasking)) {
         updateBinauralEngineUI();
       }
+      updateBinauralRatioText();
     });
 
     DOM.binauralVolSlider?.addEventListener('input', (e) => {
@@ -1929,16 +2242,22 @@
 
       updateSleepCountdownDisplay();
 
-      sleepTimerInterval = setInterval(() => {
-        if (sleepTimerSecondsLeft > 0) {
-          sleepTimerSecondsLeft--;
-          updateSleepCountdownDisplay();
+      // Wall-clock anchored: this is the one timer users deliberately leave
+      // running with the screen off, so tick counting is unusable here.
+      const sleepEndsAt = Date.now() + totalSec * 1000;
+      let fadeStarted = false;
 
-          // Smooth exponential fade-out during last 3 minutes (180 seconds)
-          if (sleepTimerSecondsLeft === 180) {
-            audioEngine.fadeBinauralMasterGain(180);
-          }
-        } else {
+      sleepTimerInterval = setInterval(() => {
+        sleepTimerSecondsLeft = Math.max(0, Math.ceil((sleepEndsAt - Date.now()) / 1000));
+        updateSleepCountdownDisplay();
+
+        // Threshold crossing, not equality — a throttled tab skips exact values.
+        if (!fadeStarted && sleepTimerSecondsLeft <= 180 && sleepTimerSecondsLeft > 0) {
+          fadeStarted = true;
+          audioEngine.fadeBinauralMasterGain(sleepTimerSecondsLeft);
+        }
+
+        if (sleepTimerSecondsLeft <= 0) {
           onSoundSleepTimerExpired();
         }
       }, 1000);
@@ -1961,10 +2280,18 @@
       if (defaultNoneBtn) defaultNoneBtn.classList.add('active');
       DOM.currentAmbientLabel.textContent = '已定時自動關閉';
 
-      // Stop Binaural Beats with gentle 2s fade out
+      // Claim the binaural graph first so the gentle 2s fade wins over the
+      // 0.5s teardown inside stopDeepSleepStudioEngine().
       audioEngine.stopBinauralBeats(2.0);
       binauralState.enabled = false;
       DOM.binauralToggle.checked = false;
+
+      // "Auto-off" must mean every source: the NREM engine and the YouTube
+      // track are sound too, and used to keep playing all night.
+      if (deepSleepState.running || deepSleepState.paused) {
+        stopDeepSleepStudioEngine(false);
+      }
+      stopYouTubeTrack();
 
       DOM.sleepTimerStatusBadge.textContent = '已完成音效自動關閉';
       DOM.sleepTimerStatusBadge.classList.remove('active');
@@ -2075,6 +2402,8 @@
     // Zen Mode Toggle
     DOM.zenBtn?.addEventListener('click', () => {
       DOM.zenOverlay?.classList.remove('hidden');
+      // The overlay ships with a hardcoded label; sync it to the real state.
+      syncTimerButtons();
     });
 
     DOM.exitZenBtn?.addEventListener('click', () => {
@@ -2082,14 +2411,25 @@
     });
 
     // Keyboard Shortcuts
+    const overlays = () => [DOM.taskModal, DOM.analyticsModal, DOM.settingsModal, DOM.versionModal];
+    const anyModalOpen = () => overlays().some(m => m && !m.classList.contains('hidden'));
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        DOM.zenOverlay.classList.add('hidden');
-        closeModal(DOM.taskModal);
-        closeModal(DOM.analyticsModal);
-        closeModal(DOM.settingsModal);
+        // Close only the topmost layer, so Esc in a modal doesn't also drop
+        // the user out of zen mode behind it.
+        if (anyModalOpen()) {
+          overlays().forEach(m => { if (m) closeModal(m); });
+        } else if (DOM.zenOverlay && !DOM.zenOverlay.classList.contains('hidden')) {
+          DOM.zenOverlay.classList.add('hidden');
+        }
+        return;
       }
-      if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+
+      const t = e.target;
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      // Space used to start the timer behind an open dialog.
+      if (e.code === 'Space' && !typing && !anyModalOpen()) {
         e.preventDefault();
         toggleTimer();
       }
@@ -2122,6 +2462,13 @@
     return formatDateString(new Date());
   }
 
+  // Was called by the mini widget but never defined — every dock refresh threw
+  // a ReferenceError, which is why it rendered once and then froze.
+  function formatTime(totalSec) {
+    const s = Math.max(0, Math.round(totalSec || 0));
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+
   function formatDateString(date) {
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -2129,8 +2476,10 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  // Coerce first: imported backups can carry numbers/null/objects in these
+  // fields, and calling .replace on a non-string used to blow up the render.
   function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
+    return String(str == null ? '' : str).replace(/[&<>'"]/g,
       tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
   }

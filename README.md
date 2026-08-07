@@ -4,7 +4,7 @@
 > 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
 > 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.8.11--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.9.0--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -18,17 +18,40 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.8.11-beta`（公開開發測試版）  
-> **版本狀態**：重構雙耳拍頻與 NREM 睡眠實驗室獨立區域 UI、實作實時基頻切換音高滑移、徹底消除開頭 440Hz 俯衝陡降與餘弦平滑降頻曲線，並新增「關閉遮罩 (純拍頻)」選項。
+> **當前版本號**：`v0.9.0-beta`（公開開發測試版）  
+> **版本狀態**：資訊架構重構（音效工作室分頁化、計時器獨立、左右迷你元件合併為單一控制台）、三組計時器改為時間戳錨定以支援手機鎖屏、修補匯入備份的 XSS 風險，並完成手機端觸控與響應式強化。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
 | 階段 / 欄位 | 說明與進版條件 | 範例 |
 | :--- | :--- | :--- |
 | **MAJOR (主版本)** | 當進行重大架構升級、UI 大版本翻新或 PWA 離線快取正式版發布時遞增。 | `v1.0.0` (正式發布版) |
-| **MINOR (次版本)** | 當新增全新功能模組時遞增（如：新增新音效產生器、語音提示、第三方行事曆同步）。 | `v0.9.0` |
-| **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.8.6` |
+| **MINOR (次版本)** | 當新增全新功能模組或進行資訊架構／核心引擎重構時遞增。 | `v0.9.0` (**當前**) |
+| **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.9.1` |
 | **STAGE (階段標籤)** | `-alpha` (內部實驗版) $\rightarrow$ `-beta` (**當前階段**) $\rightarrow$ `-rc` (準發布版) $\rightarrow$ 正式版。 | `v0.8.5-beta` |
+
+### 📋 v0.9.0-beta 變更摘要
+
+**資訊架構重構**
+- 音效功能由單張長卡片拆為四個分頁（環境音／雙耳拍頻／NREM 助眠／定時關閉）。
+- 計時器獨立為專屬卡片並於桌機吸頂，任務與音效工作室共用右欄分頁。
+- 雙耳拍頻進階設定（基頻載波、遮罩、聲學數據）預設收合。
+- 左下與右下兩個懸浮元件合併為單一迷你控制台，控制鍵改為作用在「實際執行中」的工作階段。
+
+**核心修復**
+- 三組計時器（番茄鐘／NREM 助眠／音效定時關閉）改為 `Date.now()` 時間戳錨定，分頁節流或手機鎖屏不再漏秒。
+- 匯入備份與 localStorage 一律經過欄位清洗，修補可執行任意程式碼的 XSS 風險。
+- 音效定時關閉現在會一併停止 NREM 助眠與 YouTube 音軌。
+- 補上從未定義的 `formatTime()`（迷你元件每次更新皆拋錯的主因）。
+- 修正跳過首顆番茄會直接進入長休息、儲存設定會清空進行中進度、連續天數顯示過期數字。
+- 修正 Delta 腦波卡 `<button>` 標籤未閉合。
+
+**手機端強化**
+- 消除橫向捲動（`min-width: 0` 於 flex／grid 容器）。
+- 統計圖表改為容器自適應並依 `devicePixelRatio` 繪製。
+- 表單欄位統一 16px，避免 iOS 聚焦時整頁縮放。
+- 觸控目標放大至 40–44px，並加大編輯／刪除間距。
+- 迷你控制台支援 `env(safe-area-inset-bottom)`。
 
 ---
 
