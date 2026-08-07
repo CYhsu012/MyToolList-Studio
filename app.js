@@ -627,6 +627,7 @@
     currentAmbientLabel: document.getElementById('currentAmbientLabel'),
     ytUrlInput: document.getElementById('ytUrlInput'),
     loadYtBtn: document.getElementById('loadYtBtn'),
+    stopYtBtn: document.getElementById('stopYtBtn'),
     toggleYtPlayerBtn: document.getElementById('toggleYtPlayerBtn'),
     ytPlayerContainer: document.getElementById('ytPlayerContainer'),
     ytIframeWrapper: document.getElementById('ytIframeWrapper'),
@@ -1534,6 +1535,24 @@
       return (match && match[2] && match[2].length === 11) ? match[2] : 'p5BwXeU0Z1c';
     }
 
+    function stopYouTubeTrack() {
+      if (DOM.ytIframeWrapper) {
+        DOM.ytIframeWrapper.innerHTML = '';
+      }
+      if (DOM.ytPlayerContainer) {
+        DOM.ytPlayerContainer.classList.add('hidden');
+      }
+      if (DOM.toggleYtPlayerBtn) {
+        DOM.toggleYtPlayerBtn.classList.add('hidden');
+      }
+      if (DOM.stopYtBtn) {
+        DOM.stopYtBtn.classList.add('hidden');
+      }
+      if (DOM.ytStatusBadge) {
+        DOM.ytStatusBadge.textContent = '預設：DEEP BROWN NOISE & FOREST RAIN';
+      }
+    }
+
     DOM.loadYtBtn?.addEventListener('click', () => {
       const url = DOM.ytUrlInput?.value.trim() || 'https://youtu.be/p5BwXeU0Z1c';
       const videoId = extractYouTubeId(url);
@@ -1549,10 +1568,15 @@
         }
         if (DOM.ytPlayerContainer) DOM.ytPlayerContainer.classList.remove('hidden');
         if (DOM.toggleYtPlayerBtn) DOM.toggleYtPlayerBtn.classList.remove('hidden');
-        if (DOM.ytStatusBadge) DOM.ytStatusBadge.textContent = `▶️ 音軌已載入 (ID: ${videoId})`;
+        if (DOM.stopYtBtn) DOM.stopYtBtn.classList.remove('hidden');
+        if (DOM.ytStatusBadge) DOM.ytStatusBadge.textContent = `▶️ 音軌播放中 (ID: ${videoId})`;
       } else {
         alert('請輸入有效的 YouTube 網址！');
       }
+    });
+
+    DOM.stopYtBtn?.addEventListener('click', () => {
+      stopYouTubeTrack();
     });
 
     DOM.toggleYtPlayerBtn?.addEventListener('click', () => {
@@ -1638,6 +1662,7 @@
         DOM.dsStatusBadge.className = 'ds-status-badge';
       }
       if (DOM.dsStartPauseBtn) DOM.dsStartPauseBtn.textContent = '▶️ 繼續助眠引導';
+      stopYouTubeTrack();
       checkAndUpdateMiniWidget();
     }
 
@@ -1660,6 +1685,7 @@
       }
 
       audioEngine.stopBinauralBeats(0.5);
+      stopYouTubeTrack();
       checkAndUpdateMiniWidget();
     }
 
@@ -1793,9 +1819,13 @@
         DOM.dsMaskChips.forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         deepSleepState.maskingType = chip.dataset.mask || 'brown';
+        if (deepSleepState.maskingType === 'youtube') {
+          DOM.loadYtBtn?.click();
+        } else {
+          stopYouTubeTrack();
+        }
         if (deepSleepState.running) {
           audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, deepSleepState.maskingType);
-          if (deepSleepState.maskingType === 'youtube') DOM.loadYtBtn?.click();
         }
       });
     });
