@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> v0.8.10-beta
+            <span class="beta-pulse"></span> v0.8.11-beta
           </button>
         </div>
       
@@ -228,13 +228,13 @@
               </label>
             </div>
 
-            <!-- 5 大情境封裝模式卡片 (預設高亮 Alpha 10Hz 專注) -->
+            <!-- 1. 5 大情境封裝模式卡片 (預設高亮 Alpha 10Hz 專注) -->
             <div class="binaural-modes-grid">
               <button class="binaural-card active" data-wave="alpha">
                 <div class="card-icon">🧠</div>
                 <div class="card-info">
                   <div class="card-title">Alpha (α) 平靜專注</div>
-                  <div class="card-hz">拍頻 10 Hz | 身心平靜、高效學習（預設最佳專注頻率）</div>
+                  <div class="card-hz">拍頻 10 Hz · 基頻 200 Hz (心流黃金區)</div>
                 </div>
               </button>
 
@@ -242,7 +242,7 @@
                 <div class="card-icon">⚡</div>
                 <div class="card-info">
                   <div class="card-title">Beta (β) 高效思考</div>
-                  <div class="card-hz">拍頻 20 Hz | 邏輯分析、高度警覺</div>
+                  <div class="card-hz">拍頻 20 Hz · 基頻 400 Hz (明亮提神)</div>
                 </div>
               </button>
 
@@ -250,7 +250,7 @@
                 <div class="card-icon">🚀</div>
                 <div class="card-info">
                   <div class="card-title">Gamma (γ) 極限記憶</div>
-                  <div class="card-hz">拍頻 40 Hz | 記憶整合、敏捷衝刺</div>
+                  <div class="card-hz">拍頻 40 Hz · 基頻 400 Hz (敏捷衝刺)</div>
                 </div>
               </button>
 
@@ -258,7 +258,7 @@
                 <div class="card-icon">🎨</div>
                 <div class="card-info">
                   <div class="card-title">Theta (θ) 靈感冥想</div>
-                  <div class="card-hz">拍頻 6 Hz | 創意發想、深層放鬆</div>
+                  <div class="card-hz">拍頻 6 Hz · 基頻 150 Hz (冥想和緩)</div>
                 </div>
               </button>
 
@@ -266,126 +266,130 @@
                 <div class="card-icon">🧘</div>
                 <div class="card-info">
                   <div class="card-title">Delta (δ) 睡眠修復</div>
-                  <div class="card-hz">拍頻 2 Hz | 固定 2Hz 慢波、身體休養</div>
+                  <div class="card-hz">拍頻 2 Hz · 基頻 120 Hz (低沉安撫)</div>
                 </div>
-              </button>
             </div>
 
-            <!-- 🌙 NREM 深層慢波助眠獨立實驗室方塊 (獨立控制與獨立計時器) -->
-            <div id="deepSleepStudioBlock" class="deep-sleep-studio-card">
-              <div class="ds-studio-header">
-                <div class="ds-title-group">
-                  <span class="ds-icon">🌙</span>
-                  <div>
-                    <h3 class="ds-main-title">NREM 深層慢波助眠實驗室</h3>
-                    <p class="ds-subtitle">20分鐘漸進式動態降頻 (8Hz➔5Hz➔2Hz) | 120Hz低載波 | 80% 棕色深海雷雨音</p>
-                  </div>
-                </div>
-                <span id="dsStatusBadge" class="ds-status-badge">未開始</span>
-              </div>
-
-              <!-- 獨立控制與時長選擇列 -->
-              <div class="ds-controls-bar">
-                <div class="ds-duration-selector">
-                  <span class="ds-label">助眠定時：</span>
-                  <button class="ds-duration-chip" data-mins="0.25">⚡ 15秒測試</button>
-                  <button class="ds-duration-chip" data-mins="1">🧪 1分測試</button>
-                  <button class="ds-duration-chip active" data-mins="30">30分</button>
-                  <button class="ds-duration-chip" data-mins="45">45分</button>
-                  <button class="ds-duration-chip" data-mins="60">60分</button>
-                </div>
-
-                <!-- 助眠遮罩背景音選擇 (棕色深海雷雨 / 靜謐森林雨 / YouTube客製音軌) -->
-                <div class="ds-mask-selector-row">
-                  <span class="ds-label">🎧 助眠遮罩音：</span>
-                  <button class="ds-mask-chip active" data-mask="brown" title="棕色深海雷雨音 (80% 深度遮罩)">🌊 棕色深海雷雨</button>
-                  <button class="ds-mask-chip" data-mask="forestRain" title="靜謐森林雨聲 (YT p5BwXeU0Z1c 雙層重現)">🌲 靜謐森林雨</button>
-                  <button class="ds-mask-chip" data-mask="youtube" title="搭配上方 YouTube 客製音軌/影片">📺 YouTube 音軌</button>
-                </div>
-
-                <div class="ds-action-buttons">
-                  <button id="dsStartPauseBtn" class="btn btn-primary ds-start-btn">▶️ 開始深層助眠引導</button>
-                  <button id="dsResetBtn" class="btn btn-secondary ds-reset-btn" title="中斷並重置助眠引導">🛑 中斷重置</button>
-                </div>
-              </div>
-
-              <!-- 執行中動態資訊與獨立計時面板 (預設隱藏) -->
-              <div id="dsRunInfoPanel" class="ds-run-info-panel hidden">
-                <!-- 時間數據指標 (已過時間 / 剩餘時間 / 即時腦波) -->
-                <div class="ds-timer-metrics">
-                  <div class="ds-metric-box">
-                    <span class="m-label">⏱️ 已引導時間</span>
-                    <span id="dsElapsedTimeText" class="m-value">00:00</span>
-                  </div>
-                  <div class="ds-metric-box">
-                    <span class="m-label">⏳ 剩餘總時間</span>
-                    <span id="dsRemainingTimeText" class="m-value">30:00</span>
-                  </div>
-                  <div class="ds-metric-box">
-                    <span class="m-label">📉 當前腦波拍頻</span>
-                    <span id="dsLiveHzText" class="m-value highlight">8.0 Hz</span>
-                  </div>
-                </div>
-
-                <!-- 階段降頻進度圓環與階段亮燈 -->
-                <div class="ds-curve-bar-container">
-                  <div id="dsPhaseProgressLine" class="ds-phase-progress-line" style="width: 0%;"></div>
-                  <div class="ds-curve-steps">
-                    <span id="dsStepAlpha" class="ds-step active">0-5m 8Hz (Alpha放鬆)</span>
-                    <span id="dsStepTheta" class="ds-step">5-12m 5Hz (Theta昏眠)</span>
-                    <span id="dsStepDelta" class="ds-step">12-20m 2Hz (Delta深眠)</span>
-                    <span id="dsStepSustain" class="ds-step">>20m 鎖定+3m淡出</span>
-                  </div>
-                </div>
-
-                <div class="ds-acoustic-note">
-                  🔊 120Hz 低音基頻 (活化副交感神經) | 🌊 棕色深海雷雨音 (80% 遮罩) | ⌛ 最後 3 分鐘指數級淡出關閉
-                </div>
-              </div>
-            </div>
-
-            <!-- 演算法與聽覺感官卡片 -->
-            <div class="binaural-sensory-panel">
-              <div class="sensory-row">
-                <span class="sensory-label">🎛️ 物理演算法參數：</span>
-                <span id="binauralMathText" class="sensory-value">載波 200Hz | 左耳 195.0Hz / 右耳 205.0Hz</span>
-              </div>
-              <div class="sensory-row">
-                <span class="sensory-label">🌊 感知音高與聽調：</span>
-                <span id="binauralPerceivedText" class="sensory-value">感知音高 200Hz（呈現 10Hz 脈搏起伏與頭腦中央相位移動感）</span>
-              </div>
-              <div class="sensory-row">
-                <span class="sensory-label">⚖️ 聲學防疲勞黃金比率：</span>
-                <span id="binauralRatioText" class="sensory-value">純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）</span>
-              </div>
-            </div>
-
-            <!-- 音量與基頻載波微調設定 (硬性限制於 100Hz - 400Hz 解碼黃金區間) -->
+            <!-- 2. 音量、基頻載波與防聽覺疲勞控制列 -->
             <div class="binaural-controls-row">
               <div class="carrier-freq-box">
-                <span class="carrier-label">🎼 基頻聲學載波:</span>
+                <span class="carrier-label">🎼 基頻載波:</span>
                 <select id="carrierFreqSelect" class="carrier-select" title="基頻決定音高聽感與大腦腦幹相位鎖定解碼效率（硬性限制於 100Hz - 400Hz 黃金感應區間）">
-                  <option value="120">🌙 120 Hz (低沉安撫低音 - Delta 睡眠修復)</option>
-                  <option value="150">🧘 150 Hz (和緩冥想中低音 - Theta 靈感發想)</option>
-                  <option value="200" selected>🧠 200 Hz (黃金專注中音 - Alpha 心流預設)</option>
-                  <option value="300">🎻 300 Hz (大提琴中高音 - 流暢思緒)</option>
-                  <option value="400">⚡ 400 Hz (明亮警覺高音 - Beta/Gamma 高效思考)</option>
+                  <option value="120">🌙 120 Hz (低沉安撫 - Delta/助眠)</option>
+                  <option value="150">🧘 150 Hz (和緩冥想 - Theta/靈感)</option>
+                  <option value="200" selected>🧠 200 Hz (黃金專注 - Alpha/預設)</option>
+                  <option value="300">🎻 300 Hz (大提琴中音 - 流暢思緒)</option>
+                  <option value="400">⚡ 400 Hz (明亮提神 - Beta/Gamma)</option>
                 </select>
               </div>
 
               <label class="checkbox-label comfort-masking-label" title="開啟柔和自然粉紅噪音，避免單純正弦波造成聽覺疲勞">
                 <input type="checkbox" id="comfortMaskingToggle" checked>
-                <span>🌿 開啟防聽覺疲勞柔和遮罩 (Pink Noise)</span>
+                <span>🌿 防聽覺疲勞柔和遮罩 (Pink Noise)</span>
               </label>
 
               <div class="binaural-volume-box">
-                <span class="vol-label">拍頻音量: <span id="binauralVolVal">25</span>%</span>
+                <span class="vol-label">🔊 音量: <span id="binauralVolVal">25</span>%</span>
                 <input type="range" id="binauralVolSlider" min="0" max="100" value="25" title="雙耳拍頻主音量">
+              </div>
+            </div>
+
+            <!-- 3. 實時物理聲學數據面板 (3-Column Metrics Dashboard) -->
+            <div class="binaural-sensory-panel">
+              <div class="sensory-grid">
+                <div class="sensory-card">
+                  <span class="sensory-card-title">🎛️ 物理聲學運算</span>
+                  <span id="binauralMathText" class="sensory-card-val">載波 200Hz | 左耳 195.0Hz / 右耳 205.0Hz (Δf = 10Hz)</span>
+                </div>
+                <div class="sensory-card">
+                  <span class="sensory-card-title">🌊 聽感與腦幹相位</span>
+                  <span id="binauralPerceivedText" class="sensory-card-val">感知音高 200Hz（10Hz 脈動 Tremolo + 相位鎖定）</span>
+                </div>
+                <div class="sensory-card">
+                  <span class="sensory-card-title">⚖️ 防耳疲勞黃金比</span>
+                  <span id="binauralRatioText" class="sensory-card-val">純拍頻 25% : 粉紅遮罩音 75%</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <hr class="divider" style="margin: 12px 0;">
+          <hr class="divider" style="margin: 16px 0;">
+
+          <!-- 🌙 NREM 深層慢波助眠獨立實驗室 (獨立下方專屬區域) -->
+          <div id="deepSleepStudioBlock" class="deep-sleep-studio-card">
+            <div class="ds-studio-header">
+              <div class="ds-title-group">
+                <span class="ds-icon">🌙</span>
+                <div>
+                  <h3 class="ds-main-title">NREM 深層慢波助眠實驗室</h3>
+                  <p class="ds-subtitle">20分鐘漸進式動態降頻 (8Hz➔5Hz➔2Hz) | 120Hz低載波 | 80% 棕色深海雷雨音</p>
+                </div>
+              </div>
+              <span id="dsStatusBadge" class="ds-status-badge">未開始</span>
+            </div>
+
+            <!-- 獨立控制與時長選擇列 -->
+            <div class="ds-controls-bar">
+              <div class="ds-duration-selector">
+                <span class="ds-label">助眠定時：</span>
+                <button class="ds-duration-chip" data-mins="0.25">⚡ 15秒測試</button>
+                <button class="ds-duration-chip" data-mins="1">🧪 1分測試</button>
+                <button class="ds-duration-chip active" data-mins="30">30分</button>
+                <button class="ds-duration-chip" data-mins="45">45分</button>
+                <button class="ds-duration-chip" data-mins="60">60分</button>
+              </div>
+
+              <!-- 助眠遮罩背景音選擇 (棕色深海雷雨 / 靜謐森林雨 / YouTube客製音軌 / 關閉遮罩純拍頻) -->
+              <div class="ds-mask-selector-row">
+                <span class="ds-label">🎧 助眠遮罩音：</span>
+                <button class="ds-mask-chip active" data-mask="brown" title="棕色深海雷雨音 (80% 深度遮罩)">🌊 棕色深海雷雨</button>
+                <button class="ds-mask-chip" data-mask="forestRain" title="靜謐森林雨聲 (YT p5BwXeU0Z1c 雙層重現)">🌲 靜謐森林雨</button>
+                <button class="ds-mask-chip" data-mask="youtube" title="搭配上方 YouTube 客製音軌/影片">📺 YouTube 音軌</button>
+                <button class="ds-mask-chip" data-mask="none" title="關閉背景遮罩音 (僅聽純雙耳拍頻)">🚫 關閉遮罩 (純拍頻)</button>
+              </div>
+
+              <div class="ds-action-buttons">
+                <button id="dsStartPauseBtn" class="btn btn-primary ds-start-btn">▶️ 開始深層助眠引導</button>
+                <button id="dsResetBtn" class="btn btn-secondary ds-reset-btn" title="中斷並重置助眠引導">🛑 中斷重置</button>
+              </div>
+            </div>
+
+            <!-- 執行中動態資訊與獨立計時面板 (預設隱藏) -->
+            <div id="dsRunInfoPanel" class="ds-run-info-panel hidden">
+              <!-- 時間數據指標 (已過時間 / 剩餘時間 / 即時腦波) -->
+              <div class="ds-timer-metrics">
+                <div class="ds-metric-box">
+                  <span class="m-label">⏱️ 已引導時間</span>
+                  <span id="dsElapsedTimeText" class="m-value">00:00</span>
+                </div>
+                <div class="ds-metric-box">
+                  <span class="m-label">⏳ 剩餘總時間</span>
+                  <span id="dsRemainingTimeText" class="m-value">30:00</span>
+                </div>
+                <div class="ds-metric-box">
+                  <span class="m-label">📉 當前腦波拍頻</span>
+                  <span id="dsLiveHzText" class="m-value highlight">8.0 Hz</span>
+                </div>
+              </div>
+
+              <!-- 階段降頻進度圓環與階段亮燈 -->
+              <div class="ds-curve-bar-container">
+                <div id="dsPhaseProgressLine" class="ds-phase-progress-line" style="width: 0%;"></div>
+                <div class="ds-curve-steps">
+                  <span id="dsStepAlpha" class="ds-step active">0-5m 8Hz (Alpha放鬆)</span>
+                  <span id="dsStepTheta" class="ds-step">5-12m 5Hz (Theta昏眠)</span>
+                  <span id="dsStepDelta" class="ds-step">12-20m 2Hz (Delta深眠)</span>
+                  <span id="dsStepSustain" class="ds-step">>20m 鎖定+3m淡出</span>
+                </div>
+              </div>
+
+              <div class="ds-acoustic-note">
+                🔊 120Hz 低音基頻 (活化副交感神經) | 🌊 棕色深海雷雨音 (80% 遮罩) | ⌛ 最後 3 分鐘指數級淡出關閉
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider" style="margin: 16px 0;">
 
           <!-- 音效定時關閉倒數計時器 (精確到秒) -->
           <div class="sound-sleep-timer-studio">
@@ -636,8 +640,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.10-beta</div>
-            <div class="v-desc">本版本實作雙耳腦幹「相位鎖定」最佳感應區間（100Hz - 400Hz 基頻載波限制），並導入 Alpha 200Hz / Beta 400Hz / Gamma 400Hz / Theta 150Hz / Delta 120Hz 情境動態基頻與 100Hz-400Hz 基頻切換選擇器。</div>
+            <div class="v-num">v0.8.11-beta</div>
+            <div class="v-desc">本版本重構雙耳拍頻與 NREM 睡眠實驗室獨立區域 UI、實作實時基頻切換音高滑移、徹底消除開頭 440Hz 俯衝陡降與餘弦平滑降頻曲線，並新增「關閉遮罩 (純拍頻)」選項。</div>
           </div>
 
           <hr class="divider">
@@ -654,7 +658,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.8.10</strong>：導入 100Hz-400Hz 雙耳腦幹相位鎖定黃金解碼區間與動態情境基頻載波（Dynamic Base Frequency）。</span>
+              <span class="rule-text"><strong>v0.8.11</strong>：雙耳拍頻 UI 重構、NREM 獨立區域、餘弦平滑降頻、440Hz 陡降修復與「無遮罩」純拍頻選項。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>

@@ -4,7 +4,7 @@
 > 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
 > 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.8.10--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.8.11--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -18,8 +18,8 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.8.10-beta`（公開開發測試版）  
-> **版本狀態**：實作雙耳腦幹「相位鎖定」最佳感應區間（100Hz - 400Hz 基頻載波限制），並導入 Alpha 200Hz / Beta 400Hz / Gamma 400Hz / Theta 150Hz / Delta 120Hz 情境動態基頻與 100Hz-400Hz 基頻切換選擇器。
+> **當前版本號**：`v0.8.11-beta`（公開開發測試版）  
+> **版本狀態**：重構雙耳拍頻與 NREM 睡眠實驗室獨立區域 UI、實作實時基頻切換音高滑移、徹底消除開頭 440Hz 俯衝陡降與餘弦平滑降頻曲線，並新增「關閉遮罩 (純拍頻)」選項。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
