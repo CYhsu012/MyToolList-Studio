@@ -103,6 +103,19 @@ body {
   display: none !important;
 }
 
+/* On touch devices a tap leaves :hover latched until you tap elsewhere, so
+   lifted/scaled cards stay stuck. Neutralise the transform-based ones. */
+@media (hover: none) {
+  .tool-card:hover,
+  .mini-dock:hover,
+  .mini-dock-btn:hover,
+  .btn:hover,
+  .binaural-card:hover,
+  .task-item:hover {
+    transform: none;
+  }
+}
+
 /* 3. Ambient Background Orbs Animation */
 .app-background {
   position: fixed;
@@ -154,11 +167,20 @@ body {
 }
 
 /* 4. App Container & Layout */
+/* Direct flex items of <body>. Their default min-width: auto pins them to the
+   widest descendant, which is what pushed the page sideways on phones. */
+#pomodoroAppView,
+#toolListView {
+  width: 100%;
+  min-width: 0;
+}
+
 .app-container {
   position: relative;
   z-index: 1;
   width: 100%;
   max-width: 1120px;
+  min-width: 0;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -294,173 +316,160 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   Mini Floating Widget (迷你懸浮小方塊)
+   Mini Dock (背景執行迷你控制台 — 計時進度與音效狀態合併為單一面板)
    -------------------------------------------------------------------------- */
-.mini-floating-widget {
+.mini-dock {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 990;
-  background: rgba(18, 18, 24, 0.85);
+  max-width: min(360px, calc(100vw - 32px));
+  background: rgba(18, 18, 24, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid var(--accent-primary);
+  border: 1px solid var(--bg-card-border);
   border-radius: var(--radius-lg);
-  padding: 12px 18px;
+  padding: 8px 10px 8px 8px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: slideUpWidget 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  gap: 6px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
+  animation: slideUpWidget 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slideUpWidget {
-  from { opacity: 0; transform: translateY(30px) scale(0.9); }
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.mini-floating-widget:hover {
-  transform: translateY(-4px) scale(1.03);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 28px var(--accent-glow);
-}
-
-.mini-widget-pulse {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  box-shadow: 0 0 10px var(--accent-primary);
-  animation: pulse 1.5s infinite;
-}
-
-.mini-widget-icon {
-  font-size: 24px;
-}
-
-.mini-widget-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.mini-widget-status {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.mini-widget-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.btn-mini-play {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid var(--bg-card-border);
-  color: var(--text-primary);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+/* The whole info block is the "return to app" target; controls sit outside it
+   so a tap on a button can never be mistaken for a navigation. */
+.mini-dock-open {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 14px;
+  gap: 11px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
+  text-align: left;
   transition: var(--transition);
 }
 
-.btn-mini-play:hover {
-  background: var(--accent-primary);
-  color: #fff;
-  transform: scale(1.1);
+.mini-dock-open:hover {
+  background: rgba(255, 255, 255, 0.07);
 }
 
-/* --------------------------------------------------------------------------
-   Mini Floating Left Bar (左下角倒數計時進度與音效資訊面板)
-   -------------------------------------------------------------------------- */
-.mini-floating-left-bar {
-  position: fixed;
-  bottom: 24px;
-  left: 24px;
-  z-index: 990;
-  background: rgba(18, 18, 24, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid var(--accent-primary);
-  border-radius: var(--radius-lg);
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: slideUpWidget 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.mini-floating-left-bar:hover {
-  transform: translateY(-4px) scale(1.03);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 0 28px var(--accent-glow);
-}
-
-.mini-progress-ring-wrapper {
+.mini-ring-wrapper {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .mini-ring-svg {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   transform: rotate(-90deg);
 }
 
 .mini-ring-bg {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.1);
-  stroke-width: 3.8;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3.4;
 }
 
 .mini-ring-progress {
   fill: none;
   stroke: var(--accent-primary);
-  stroke-width: 3.8;
+  stroke-width: 3.4;
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s ease;
 }
 
-.mini-progress-pct {
+.mini-ring-icon {
   position: absolute;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1;
 }
 
-.mini-left-info {
+.mini-dock-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.mini-left-title {
+.mini-dock-status {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-}
-
-.mini-left-audio {
-  font-size: 11px;
-  color: var(--accent-primary);
-  max-width: 220px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mini-dock-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mini-dock-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mini-dock-btn:hover {
+  background: var(--accent-primary);
+  transform: scale(1.08);
+}
+
+.mini-dock-btn.hidden {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .mini-dock {
+    left: 12px;
+    right: 12px;
+    /* Clear the iPhone home indicator so the controls stay tappable. */
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    max-width: none;
+  }
+
+  /* 44px is the minimum reliable touch target. */
+  .mini-dock-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+  }
 }
 
 .app-header {
@@ -612,15 +621,17 @@ body {
 }
 
 /* Main Grid Layout */
+/* minmax(0, 1fr) — a bare 1fr defaults to min-width: auto, letting wide
+   children stretch the column past the viewport instead of shrinking. */
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
 }
 
 @media (max-width: 900px) {
   .main-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -642,6 +653,25 @@ body {
 .timer-section {
   align-items: center;
   text-align: center;
+  min-width: 0;
+}
+
+/* Keep the countdown pinned while the workspace column scrolls */
+@media (min-width: 901px) {
+  .timer-section {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+  }
+}
+
+/* The workspace card already supplies the surface — drop the nested box-in-a-box */
+.workspace-panel .ambient-sound-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  text-align: left;
 }
 
 .mode-tabs {
@@ -904,6 +934,44 @@ body {
   flex: 1;
   accent-color: var(--accent-primary);
   cursor: pointer;
+}
+
+/* Audio Studio Sub-Tabs (環境音 / 雙耳拍頻 / NREM 助眠 / 定時關閉) */
+.audio-subtab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.audio-subtab-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.audio-subtab-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.audio-subtab-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+.audio-subpanel {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Binaural Beats Studio Styles */
@@ -1483,6 +1551,45 @@ input:checked + .switch-slider:before {
   width: 100px;
 }
 
+/* Binaural Advanced Settings Disclosure (基頻載波 / 遮罩 / 聲學數據，預設收合) */
+.audio-advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--bg-card-border);
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+}
+
+.audio-advanced-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.adv-toggle-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.audio-advanced-toggle[aria-expanded="true"] .adv-toggle-arrow {
+  transform: rotate(90deg);
+}
+
+.binaural-advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
 /* Sound Sleep Timer Styles */
 .sound-sleep-timer-studio {
   display: flex;
@@ -1591,6 +1698,72 @@ input:checked + .switch-slider:before {
 /* 7. Tasks Section */
 .tasks-section {
   justify-content: flex-start;
+}
+
+/* Workspace Section (任務清單 / 音效工作室 分頁共用右欄) */
+.workspace-section {
+  justify-content: flex-start;
+  gap: 20px;
+  min-width: 0;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 5px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--bg-card-border);
+}
+
+.workspace-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 9px 12px;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.workspace-tab:hover {
+  color: var(--text-primary);
+}
+
+.workspace-tab.active {
+  background: var(--accent-primary);
+  color: #fff;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* 音效發聲中的呼吸指示點，切到任務分頁時仍看得到聲音正在播放 */
+.workspace-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+.workspace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
 }
 
 .section-header {
@@ -2047,6 +2220,51 @@ html, body {
 }
 
 @media (max-width: 600px) {
+  /* iOS Safari zooms the whole page whenever a focused field is under 16px.
+     Needs to out-specify the per-component sizes (.carrier-select etc). */
+  .app-container input[type="text"],
+  .app-container input[type="number"],
+  .app-container textarea,
+  .app-container select,
+  .modal-card input,
+  .modal-card select,
+  .icon-select,
+  .carrier-select,
+  .yt-url-input {
+    font-size: 16px;
+  }
+
+  /* Touch targets. The edit/delete pair was 26x25 and side by side, which
+     made mis-tapping 刪除 while aiming for 編輯 far too easy. */
+  .action-btn {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .task-actions {
+    gap: 10px;
+  }
+
+  .task-checkbox {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .filter-chip,
+  .ambient-btn,
+  .audio-subtab-btn,
+  .preset-chip,
+  .ds-duration-chip,
+  .ds-mask-chip {
+    min-height: 40px;
+  }
+
+  .workspace-tab {
+    min-height: 44px;
+  }
+
   .app-container {
     padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
     gap: 16px;
@@ -2058,6 +2276,15 @@ html, body {
     gap: 10px;
   }
 
+  /* .brand is a single non-wrapping row ~410px wide — the sole cause of
+     horizontal scroll on phones. Let it wrap instead of pushing the page. */
+  .brand {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    row-gap: 8px;
+  }
+
   .brand-title {
     font-size: 20px;
   }
@@ -2065,7 +2292,8 @@ html, body {
   .header-actions {
     gap: 8px;
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .streak-badge {
@@ -2178,9 +2406,10 @@ html, body {
   }
 
   .time-input-group input[type="number"] {
-    width: 52px;
-    padding: 6px;
-    font-size: 14px;
+    width: 62px;
+    padding: 8px 6px;
+    /* 16px: anything smaller makes iOS zoom the page on focus. */
+    font-size: 16px;
   }
 
   .sleep-preset-chips {
