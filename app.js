@@ -436,6 +436,10 @@
       this.binauralRightOsc.type = 'sine';
       this.binauralRightOsc.frequency.setValueAtTime(fRight, now);
 
+      // Store explicit tracked frequencies to eliminate Web Audio default 440Hz getter plunge artifact!
+      this.currentFLeft = fLeft;
+      this.currentFRight = fRight;
+
       if (leftPanner && rightPanner) {
         leftPanner.pan.setValueAtTime(-1, now);
         rightPanner.pan.setValueAtTime(1, now);
@@ -504,13 +508,35 @@
       this.binauralRightOsc.start(now);
     }
 
-    updateBinauralFrequencies(baseFreq = 200, beatFreq = 10) {
+    updateBinauralFrequencies(baseFreq = 200, beatFreq = 10, rampDuration = 0.8) {
       if (this.ctx && this.binauralLeftOsc && this.binauralRightOsc) {
         const now = this.ctx.currentTime;
-        const fLeft = baseFreq - (beatFreq / 2.0);
-        const fRight = baseFreq + (beatFreq / 2.0);
-        this.binauralLeftOsc.frequency.linearRampToValueAtTime(fLeft, now + 0.5);
-        this.binauralRightOsc.frequency.linearRampToValueAtTime(fRight, now + 0.5);
+        const safeBaseFreq = Math.max(100, Math.min(400, baseFreq || 200));
+        const fLeft = safeBaseFreq - (beatFreq / 2.0);
+        const fRight = safeBaseFreq + (beatFreq / 2.0);
+
+        // Use tracked frequency or fallback to target frequency if just started
+        const startLeft = (typeof this.currentFLeft === 'number') ? this.currentFLeft : fLeft;
+        const startRight = (typeof this.currentFRight === 'number') ? this.currentFRight : fRight;
+
+        try {
+          // Cancel previous scheduled frequency ramps to prevent pitch jumps & click artifacts
+          this.binauralLeftOsc.frequency.cancelScheduledValues(now);
+          this.binauralRightOsc.frequency.cancelScheduledValues(now);
+
+          // Lock explicit starting frequency before initiating smooth linear ramp
+          this.binauralLeftOsc.frequency.setValueAtTime(startLeft, now);
+          this.binauralRightOsc.frequency.setValueAtTime(startRight, now);
+
+          this.binauralLeftOsc.frequency.linearRampToValueAtTime(fLeft, now + rampDuration);
+          this.binauralRightOsc.frequency.linearRampToValueAtTime(fRight, now + rampDuration);
+        } catch (e) {
+          this.binauralLeftOsc.frequency.setValueAtTime(fLeft, now);
+          this.binauralRightOsc.frequency.setValueAtTime(fRight, now);
+        }
+
+        this.currentFLeft = fLeft;
+        this.currentFRight = fRight;
       }
     }
 
@@ -551,6 +577,8 @@
       this.binauralLeftOsc = null;
       this.binauralRightOsc = null;
       this.binauralMaskingNoise = null;
+      this.currentFLeft = null;
+      this.currentFRight = null;
 
       if (!masterGain || !this.ctx) return;
 
@@ -1618,8 +1646,9 @@
 
       const totalSec = Math.round(deepSleepState.durationMins * 60);
 
-      // 120Hz Low Carrier + Initial 8.0Hz Alpha + Selected Masking Noise (Brown Noise, Forest Rain, or YouTube)
-      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, deepSleepState.maskingType || 'brown');
+      // 120Hz Low Carrier + Initial 8.0Hz Alpha + Selected Masking Noise (Brown Noise, Forest Rain, YouTube, or None)
+      const enableMasking = deepSleepState.maskingType !== 'none';
+      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, enableMasking, deepSleepState.maskingType || 'brown');
       if (deepSleepState.maskingType === 'youtube') {
         DOM.loadYtBtn?.click();
       }
@@ -1709,35 +1738,28 @@
         DOM.dsRemainingTimeText.textContent = `${String(remMins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`;
       }
 
-      // Frequency Ramp Calculation (Proportional timeline for test durations)
-      let currentHz = 8.0;
+      // Ultra-smooth Cosine Descent Curve: 8.0 Hz -> 2.0 Hz over 85% of total session time
+      const activeDuration = Math.max(1, totalSec * 0.85);
+      const progress = Math.min(1.0, elapsed / activeDuration);
+      
+      // Cosine Interpolation guarantees 100% continuous zero-derivative curve (no sharp slope jumps!)
+      const currentHz = 2.0 + (8.0 - 2.0) * 0.5 * (1 + Math.cos(Math.PI * progress));
+      
       let activeStepId = 'dsStepAlpha';
-      let progressPct = Math.round((elapsed / totalSec) * 100);
+      const progressPct = Math.round((elapsed / totalSec) * 100);
 
-      const t1 = Math.round(totalSec * 0.25); // Alpha phase (25%)
-      const t2 = Math.round(totalSec * 0.60); // Theta phase (60%)
-      const t3 = Math.round(totalSec * 0.85); // Delta phase (85%)
-
-      if (elapsed < t1) {
-        // Phase 1: 8.0 -> 5.0 Hz (Alpha -> Theta)
-        currentHz = 8.0 - (elapsed / Math.max(1, t1)) * 3.0;
-        activeStepId = 'dsStepAlpha';
-      } else if (elapsed < t2) {
-        // Phase 2: 5.0 -> 2.0 Hz (Theta -> Delta)
-        currentHz = 5.0 - ((elapsed - t1) / Math.max(1, t2 - t1)) * 3.0;
-        activeStepId = 'dsStepTheta';
-      } else if (elapsed < t3) {
-        // Phase 3: 2.0 Hz (Delta Deep Sleep)
-        currentHz = 2.0;
-        activeStepId = 'dsStepDelta';
+      if (currentHz > 6.0) {
+        activeStepId = 'dsStepAlpha'; // 8.0Hz - 6.0Hz
+      } else if (currentHz > 3.0) {
+        activeStepId = 'dsStepTheta'; // 6.0Hz - 3.0Hz
+      } else if (progress < 1.0) {
+        activeStepId = 'dsStepDelta'; // 3.0Hz - 2.0Hz
       } else {
-        // Phase 4: Sustain & Fade-Out
-        currentHz = 2.0;
-        activeStepId = 'dsStepSustain';
+        activeStepId = 'dsStepSustain'; // Sustain 2.0Hz Deep Sleep
       }
 
-      // Ramp Web Audio Frequencies
-      audioEngine.updateBinauralFrequencies(120, currentHz);
+      // Smoothly Ramp Web Audio Frequencies (120Hz Base Carrier + Ultra-Smooth Cosine Beat Frequency)
+      audioEngine.updateBinauralFrequencies(120, currentHz, 0.95);
 
       if (DOM.dsLiveHzText) DOM.dsLiveHzText.textContent = `${currentHz.toFixed(1)} Hz`;
       if (DOM.dsPhaseProgressLine) DOM.dsPhaseProgressLine.style.width = `${Math.min(100, progressPct)}%`;
@@ -1848,7 +1870,8 @@
           stopYouTubeTrack();
         }
         if (deepSleepState.running) {
-          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, true, deepSleepState.maskingType);
+          const enableMasking = deepSleepState.maskingType !== 'none';
+          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, enableMasking, deepSleepState.maskingType);
         }
       });
     });
