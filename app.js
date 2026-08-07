@@ -397,6 +397,9 @@
       this.stopBinauralBeats(0); // Synchronous immediate stop of previous nodes
       this.initCtx();
 
+      // Enforce strict physical & brainstem phase-locking optimal carrier window: 100 Hz - 400 Hz
+      const safeBaseFreq = Math.max(100, Math.min(400, baseFreq || 200));
+
       const now = this.ctx.currentTime;
       const targetVol = (volumePct / 100) * 0.5; // Prevent clipping (0 dBFS limit)
 
@@ -417,8 +420,8 @@
       beatToneGainNode.connect(this.binauralMasterGain);
 
       // Calculate Left & Right pure sine frequencies:
-      const fLeft = baseFreq - (beatFreq / 2.0);
-      const fRight = baseFreq + (beatFreq / 2.0);
+      const fLeft = safeBaseFreq - (beatFreq / 2.0);
+      const fRight = safeBaseFreq + (beatFreq / 2.0);
 
       // Channel Separation: Use StereoPanner if available, or ChannelMergerNode
       const leftPanner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
@@ -636,6 +639,7 @@
     // Binaural Beats Studio UI
     binauralToggle: document.getElementById('binauralToggle'),
     binauralCards: document.querySelectorAll('.binaural-card'),
+    carrierFreqSelect: document.getElementById('carrierFreqSelect'),
     binauralMathText: document.getElementById('binauralMathText'),
     binauralPerceivedText: document.getElementById('binauralPerceivedText'),
     comfortMaskingToggle: document.getElementById('comfortMaskingToggle'),
@@ -723,14 +727,14 @@
     }
   }
 
-  // Dedicated Binaural Beats & Deep Sleep Studio State
+  // Dedicated Binaural Beats & Deep Sleep Studio State (Strict Acoustic & Brainstem Phase-Locking Rules)
   const wavePresets = {
-    alpha: { deltaF: 10, name: 'Alpha (α)', label: '平靜專注、身心平靜、學習狀態' },
-    beta: { deltaF: 20, name: 'Beta (β)', label: '高效思考、邏輯分析、高度警覺' },
-    gamma: { deltaF: 40, name: 'Gamma (γ)', label: '極限超頻、記憶整合、資訊速處理' },
-    theta: { deltaF: 6, name: 'Theta (θ)', label: '靈感發想、深度冥想、直覺創想' },
-    delta: { deltaF: 2, name: 'Delta (δ)', label: '身體修復、深層放鬆、緩解失眠' },
-    deepSleep: { deltaF: 8, name: 'NREM 慢波深眠', label: '20分鐘動態降頻演算法 (8Hz ➔ 5Hz ➔ 2Hz) + 120Hz低載波與棕色噪音' }
+    alpha: { deltaF: 10, baseFreq: 200, name: 'Alpha (α)', label: '平靜專注、心流學習（200Hz 黃金專注載波）' },
+    beta: { deltaF: 20, baseFreq: 400, name: 'Beta (β)', label: '高效思考、邏輯分析（400Hz 明亮提神載波）' },
+    gamma: { deltaF: 40, baseFreq: 400, name: 'Gamma (γ)', label: '極限超頻、記憶整合（400Hz 警覺載波）' },
+    theta: { deltaF: 6, baseFreq: 150, name: 'Theta (θ)', label: '靈感發想、深度冥想（150Hz 放鬆中低音載波）' },
+    delta: { deltaF: 2, baseFreq: 120, name: 'Delta (δ)', label: '身體修復、深層放鬆（120Hz 低沉安撫載波）' },
+    deepSleep: { deltaF: 8, baseFreq: 120, name: 'NREM 慢波深眠', label: '動態降頻演算法 (8Hz ➔ 5Hz ➔ 2Hz) + 120Hz 低沉安撫載波' }
   };
 
   let binauralState = {
@@ -1747,6 +1751,9 @@
     function updateBinauralEngineUI() {
       const preset = wavePresets[binauralState.waveMode] || wavePresets.alpha;
       const deltaF = preset.deltaF;
+
+      // Enforce strict physical & brainstem phase-locking optimal carrier window: 100 Hz - 400 Hz
+      binauralState.baseFreq = Math.max(100, Math.min(400, binauralState.baseFreq || preset.baseFreq || 200));
       const baseFreq = binauralState.baseFreq;
 
       // Synchronize Card active highlights
@@ -1756,6 +1763,11 @@
         }
       });
 
+      // Synchronize Carrier Selector UI
+      if (DOM.carrierFreqSelect) {
+        DOM.carrierFreqSelect.value = String(baseFreq);
+      }
+
       // Stop Deep Sleep Studio Engine if user explicitly switches to standard presets
       stopDeepSleepStudioEngine(false);
 
@@ -1764,8 +1776,8 @@
       const perceivedPitch = baseFreq;
 
       if (DOM.binauralVolVal) DOM.binauralVolVal.textContent = binauralState.volume;
-      if (DOM.binauralMathText) DOM.binauralMathText.textContent = `基頻 ${baseFreq}Hz | 左耳 ${fLeft.toFixed(1)}Hz / 右耳 ${fRight.toFixed(1)}Hz (頻差 Δf = ${deltaF}Hz)`;
-      if (DOM.binauralPerceivedText) DOM.binauralPerceivedText.textContent = `感知音高 ${perceivedPitch}Hz（聽感呈現 ${deltaF}Hz 規律脈動 Tremolo 與頭腦中央相位移動感）`;
+      if (DOM.binauralMathText) DOM.binauralMathText.textContent = `載波 ${baseFreq}Hz | 左耳 ${fLeft.toFixed(1)}Hz / 右耳 ${fRight.toFixed(1)}Hz (頻差 Δf = ${deltaF}Hz)`;
+      if (DOM.binauralPerceivedText) DOM.binauralPerceivedText.textContent = `感知音高 ${perceivedPitch}Hz（聽感呈現 ${deltaF}Hz 規律脈動 Tremolo 與頭腦中央相位鎖定感）`;
       if (DOM.binauralRatioText) DOM.binauralRatioText.textContent = `純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）`;
 
       if (binauralState.enabled) {
@@ -1789,8 +1801,19 @@
         DOM.binauralCards.forEach(c => c.classList.remove('active'));
         card.classList.add('active');
         binauralState.waveMode = card.dataset.wave;
+        const preset = wavePresets[binauralState.waveMode];
+        if (preset && preset.baseFreq) {
+          binauralState.baseFreq = preset.baseFreq;
+        }
         updateBinauralEngineUI();
       });
+    });
+
+    DOM.carrierFreqSelect?.addEventListener('change', (e) => {
+      audioEngine.initCtx();
+      let selectedHz = parseInt(e.target.value, 10);
+      binauralState.baseFreq = Math.max(100, Math.min(400, selectedHz || 200));
+      updateBinauralEngineUI();
     });
 
     // Deep Sleep Studio Block Events
