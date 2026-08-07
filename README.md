@@ -4,7 +4,7 @@
 > 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
 > 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.8.8--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.8.9--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -18,8 +18,8 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.8.8-beta`（公開開發測試版）  
-> **版本狀態**：全新加入 YouTube 客製音軌/背景遮罩載入面板、100% 離線靜謐森林雨與深棕音（YT p5BwXeU0Z1c 聲學重現），並於 NREM 助眠實驗室新增 3 大助眠遮罩音軌切換晶片（棕色深海雷雨 / 靜謐森林雨 / YouTube 客製音軌）。
+> **當前版本號**：`v0.8.9-beta`（公開開發測試版）  
+> **版本狀態**：修復 YouTube 客製音軌於中斷引導、暫停或切換遮罩時無法自動停止發聲的問題，並新增專屬「⏹️ 停止音軌」按鈕與自動連動控制。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
