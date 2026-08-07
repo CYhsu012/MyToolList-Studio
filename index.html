@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> v0.8.9-beta
+            <span class="beta-pulse"></span> v0.8.10-beta
           </button>
         </div>
       
@@ -360,8 +360,19 @@
               </div>
             </div>
 
-            <!-- 音量與防刺耳遮罩設定 -->
+            <!-- 音量與基頻載波微調設定 (硬性限制於 100Hz - 400Hz 解碼黃金區間) -->
             <div class="binaural-controls-row">
+              <div class="carrier-freq-box">
+                <span class="carrier-label">🎼 基頻聲學載波:</span>
+                <select id="carrierFreqSelect" class="carrier-select" title="基頻決定音高聽感與大腦腦幹相位鎖定解碼效率（硬性限制於 100Hz - 400Hz 黃金感應區間）">
+                  <option value="120">🌙 120 Hz (低沉安撫低音 - Delta 睡眠修復)</option>
+                  <option value="150">🧘 150 Hz (和緩冥想中低音 - Theta 靈感發想)</option>
+                  <option value="200" selected>🧠 200 Hz (黃金專注中音 - Alpha 心流預設)</option>
+                  <option value="300">🎻 300 Hz (大提琴中高音 - 流暢思緒)</option>
+                  <option value="400">⚡ 400 Hz (明亮警覺高音 - Beta/Gamma 高效思考)</option>
+                </select>
+              </div>
+
               <label class="checkbox-label comfort-masking-label" title="開啟柔和自然粉紅噪音，避免單純正弦波造成聽覺疲勞">
                 <input type="checkbox" id="comfortMaskingToggle" checked>
                 <span>🌿 開啟防聽覺疲勞柔和遮罩 (Pink Noise)</span>
@@ -625,8 +636,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num">v0.8.9-beta</div>
-            <div class="v-desc">本版本修復 YouTube 客製音軌於中斷引導、暫停或切換遮罩時無法自動停止發聲的問題，並新增專屬「⏹️ 停止音軌」按鈕與自動連動控制。</div>
+            <div class="v-num">v0.8.10-beta</div>
+            <div class="v-desc">本版本實作雙耳腦幹「相位鎖定」最佳感應區間（100Hz - 400Hz 基頻載波限制），並導入 Alpha 200Hz / Beta 400Hz / Gamma 400Hz / Theta 150Hz / Delta 120Hz 情境動態基頻與 100Hz-400Hz 基頻切換選擇器。</div>
           </div>
 
           <hr class="divider">
@@ -643,7 +654,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.8.9</strong>：修復 YouTube 客製音軌在中斷引導與切換遮罩時的自動停止機制與專屬控制。</span>
+              <span class="rule-text"><strong>v0.8.10</strong>：導入 100Hz-400Hz 雙耳腦幹相位鎖定黃金解碼區間與動態情境基頻載波（Dynamic Base Frequency）。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>
