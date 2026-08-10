@@ -476,6 +476,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   background: var(--bg-card);
   backdrop-filter: var(--glass-backdrop);
   -webkit-backdrop-filter: var(--glass-backdrop);
@@ -598,10 +600,19 @@ body {
   color: var(--text-secondary);
 }
 
+/* Wrap at any width, not just phones. Gating this at <=600px left every
+   intermediate window (601-900px) overflowing sideways. */
 .header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.header-actions .icon-select {
+  max-width: 100%;
 }
 
 .streak-badge {
@@ -1488,8 +1499,14 @@ input:checked + .switch-slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 12px 20px;
+  flex-wrap: wrap;
   margin-top: 4px;
+}
+
+.binaural-controls-row > * {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .carrier-freq-box {
@@ -1549,6 +1566,65 @@ input:checked + .switch-slider:before {
   accent-color: var(--accent-primary);
   cursor: pointer;
   width: 100px;
+}
+
+/* Mask mode selector + independent mask volume */
+.mask-mode-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mask-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.mask-level-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mask-level-box input[type="range"] {
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Deep sleep's own volume pair */
+.ds-volume-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+}
+
+.ds-volume-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.ds-vol-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ds-volume-box input[type="range"] {
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  flex: 1;
+  min-width: 100px;
 }
 
 /* Binaural Advanced Settings Disclosure (基頻載波 / 遮罩 / 聲學數據，預設收合) */

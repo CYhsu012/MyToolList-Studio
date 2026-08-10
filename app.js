@@ -11,7 +11,7 @@
   // Single source of truth for the version string. Every place that shows it
   // carries data-app-version and is stamped at boot, so the tool-list badge
   // can no longer drift out of sync with the app header.
-  const APP_VERSION = 'v0.9.0-beta';
+  const APP_VERSION = 'v0.9.1-beta';
 
   const STORAGE_KEYS = {
     SETTINGS: 'pomoflow_settings',
@@ -81,6 +81,17 @@
       // Each fade-out owns its own stop timeout, so a later stop can never orphan
       // an earlier call's oscillators by cancelling their scheduled stop.
       this.pendingBinauralStops = new Set();
+      // Bandpassing the mask onto the carrier throws away most of its energy,
+      // so mode B needs make-up gain to actually reach the tone. Tuned by
+      // measuring tone-vs-mask inside the auditory critical band.
+      // 2.0 measured: tone-vs-mask goes 19dB (mode A) -> 13dB. An earlier 4.2
+      // hit ~6dB, which genuinely masked the sine — the beat percept vanished
+      // and it read as plain noise. Softening must stay well short of masking.
+      this.BLEND_MASK_BOOST = 2.0;
+      this.binauralMaskModeGain = 0.75; // full-level gain for the active mode
+      this.binauralMaskBaseGain = 0.75; // that gain after the user's level scale
+      this.binauralMaskEnabled = true;
+      this.maskLevelScale = 0.5;        // user-facing mask volume, 0..1
     }
 
     initCtx() {
@@ -94,8 +105,27 @@
       this.enableIOSBackgroundAudioKeeper();
     }
 
+    // iOS is the only platform that needs the MediaStream detour to keep audio
+    // alive on the lock screen. Everywhere else it is pure cost.
+    isIOS() {
+      if (typeof this._isIOS === 'boolean') return this._isIOS;
+      const ua = navigator.userAgent || '';
+      const iPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+      this._isIOS = /iPad|iPhone|iPod/.test(ua) || iPadOS;
+      return this._isIOS;
+    }
+
     connectOutput(node) {
       if (!this.ctx || !node) return;
+
+      // Routing everything through MediaStream -> <audio> puts the graph on the
+      // AudioContext clock and playback on the output-device clock. The two
+      // drift, the pipeline resamples to compensate, and pure sine tones expose
+      // that as a slow periodic pitch warble. Only pay that price on iOS.
+      if (!this.isIOS()) {
+        try { node.connect(this.ctx.destination); } catch (e) {}
+        return;
+      }
 
       const silentAudio = document.getElementById('silentAudioLoop');
 
@@ -114,20 +144,19 @@
       }
 
       if (this.mediaStreamDest && silentAudio) {
-        // Connect ONLY to mediaStreamDest so HTML5 <audio> handles speaker output (Single Audio Path = No Distortion, 100% Background Audio)
         try {
           node.connect(this.mediaStreamDest);
         } catch (e) {
           try { node.connect(this.ctx.destination); } catch (err) {}
         }
       } else {
-        // Desktop or browsers without HTML5 MediaStream audio
         try { node.connect(this.ctx.destination); } catch (e) {}
       }
     }
 
     // --- iOS Safari Lock Screen Background Audio Keeper ---
     enableIOSBackgroundAudioKeeper() {
+      if (!this.isIOS()) return;
       const silentAudio = document.getElementById('silentAudioLoop');
       if (silentAudio) {
         const playPromise = silentAudio.play();
@@ -405,7 +434,7 @@
     }
 
     // --- Dedicated Binaural Beats Engine (Strict Physical & Acoustic Algorithm) ---
-    startBinauralBeats(baseFreq = 200, beatFreq = 10, volumePct = 25, enableMasking = true, maskingType = 'pink') {
+    startBinauralBeats(baseFreq = 200, beatFreq = 10, volumePct = 25, enableMasking = true, maskingType = 'pink', maskMode = 'ambient') {
       this.stopBinauralBeats(0); // Synchronous immediate stop of previous nodes
       this.initCtx();
 
@@ -469,53 +498,52 @@
         merger.connect(beatToneGainNode);
       }
 
-      // Comfort Masking Layer (Pink Noise or Brown Noise).
-      // Always built, then gated by its own gain node, so the comfort-masking
-      // checkbox can fade it in and out live instead of forcing a restart.
+      // Comfort Masking Layer. Always built, then gated by its own gain node so
+      // the comfort-masking checkbox can fade it live instead of restarting.
       {
-        const bufferSize = this.ctx.sampleRate * 2;
-        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = noiseBuffer.getChannelData(0);
-
-        if (maskingType === 'brown') {
-          // Brown Noise (1/f^2 attenuation, deep ocean rumble)
-          let lastOutput = 0.0;
-          for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            data[i] = (lastOutput + (0.02 * white)) / 1.02;
-            lastOutput = data[i];
-            data[i] *= 3.5;
-          }
-        } else {
-          // Pink Noise (1/f attenuation)
-          let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-          for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            b0 = 0.99886 * b0 + white * 0.0555179;
-            b1 = 0.99332 * b1 + white * 0.0750759;
-            b2 = 0.96900 * b2 + white * 0.1538520;
-            b3 = 0.86650 * b3 + white * 0.3104856;
-            b4 = 0.55000 * b4 + white * 0.5329522;
-            b5 = -0.7616 * b5 - white * 0.0168980;
-            data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.1;
-            b6 = white * 0.115926;
-          }
-        }
-
+        const noiseType = maskingType === 'brown' ? 'brown' : 'pink';
         this.binauralMaskingNoise = this.ctx.createBufferSource();
-        this.binauralMaskingNoise.buffer = noiseBuffer;
+        // Mode B decorrelates per ear so the bed cannot smear the interaural cue.
+        this.binauralMaskingNoise.buffer = this.createNoiseBuffer(noiseType, 8, maskMode === 'blend' ? 2 : 1);
         this.binauralMaskingNoise.loop = true;
 
         const maskGainNode = this.ctx.createGain();
-        maskGainNode.gain.setValueAtTime(enableMasking ? maskNoiseRatio : 0.0001, now);
         this.binauralMaskGainNode = maskGainNode;
 
-        const maskFilter = this.ctx.createBiquadFilter();
-        maskFilter.type = 'lowpass';
-        maskFilter.frequency.setValueAtTime(maskingType === 'brown' ? 450 : 800, now);
+        // Always drop the sub-bass. Measurement showed 20-80Hz was the loudest
+        // band in the mask while contributing nothing to masking a 120-400Hz
+        // carrier — it just ate headroom and rattled headphone drivers.
+        const hp = this.ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.setValueAtTime(60, now);
 
-        this.binauralMaskingNoise.connect(maskFilter);
-        maskFilter.connect(maskGainNode);
+        const shaper = this.ctx.createBiquadFilter();
+        let modeGain;
+
+        if (maskMode === 'blend') {
+          // Mode B — park the noise energy on the carrier so it actually blends
+          // with the sine instead of rumbling harmlessly two octaves below it.
+          shaper.type = 'bandpass';
+          shaper.frequency.setValueAtTime(safeBaseFreq, now);
+          // Wide (Q 0.7) so the bed stays noise-like rather than pitched.
+          shaper.Q.setValueAtTime(0.7, now);
+          modeGain = maskNoiseRatio * this.BLEND_MASK_BOOST;
+        } else {
+          // Mode A — original warm low-passed bed; the beat tone stays dominant.
+          shaper.type = 'lowpass';
+          shaper.frequency.setValueAtTime(maskingType === 'brown' ? 450 : 800, now);
+          modeGain = maskNoiseRatio;
+        }
+
+        this.binauralMaskModeGain = modeGain;
+        this.binauralMaskEnabled = enableMasking;
+        const applied = Math.max(0.0001, modeGain * this.maskLevelScale);
+        this.binauralMaskBaseGain = applied;
+        maskGainNode.gain.setValueAtTime(enableMasking ? applied : 0.0001, now);
+
+        this.binauralMaskingNoise.connect(hp);
+        hp.connect(shaper);
+        shaper.connect(maskGainNode);
         maskGainNode.connect(this.binauralMasterGain);
         this.binauralMaskingNoise.start(now);
       }
@@ -571,15 +599,103 @@
       }
     }
 
+    // Seamless looping noise. The old 2s buffer looped with a raw splice, so the
+    // random walk's end value stepped back to its start — a low thump every 2s
+    // (measured up to 19x a normal sample step). Longer buffer + crossfaded tail
+    // + normalisation also fixes the ~1.4dB level lottery between sessions.
+    // channels=2 generates an independent noise stream per ear. Correlated
+    // (mono) noise images dead-centre — exactly where the binaural percept
+    // sits — so a decorrelated bed surrounds the beat instead of competing.
+    createNoiseBuffer(type = 'pink', seconds = 8, channels = 1) {
+      const sr = this.ctx.sampleRate;
+      const xfade = Math.floor(sr * 0.25);
+      const total = Math.floor(sr * seconds) + xfade;
+      const len = total - xfade;
+      const buffer = this.ctx.createBuffer(channels, len, sr);
+
+      for (let ch = 0; ch < channels; ch++) {
+        const raw = new Float32Array(total);
+
+        if (type === 'brown') {
+          let last = 0;
+          for (let i = 0; i < total; i++) {
+            const white = Math.random() * 2 - 1;
+            raw[i] = (last + 0.02 * white) / 1.02;
+            last = raw[i];
+          }
+        } else {
+          let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+          for (let i = 0; i < total; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            raw[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.1;
+            b6 = white * 0.115926;
+          }
+        }
+
+        const out = new Float32Array(len);
+        out.set(raw.subarray(0, len));
+        // Equal-power crossfade the overrun back over the head: seam-free loop
+        for (let i = 0; i < xfade; i++) {
+          const t = i / xfade;
+          out[i] = out[i] * Math.sin(t * Math.PI / 2) + raw[len + i] * Math.cos(t * Math.PI / 2);
+        }
+
+        // Remove DC, then normalise so every session starts at the same level
+        let mean = 0;
+        for (let i = 0; i < len; i++) mean += out[i];
+        mean /= len;
+        let peak = 0;
+        for (let i = 0; i < len; i++) {
+          out[i] -= mean;
+          const v = Math.abs(out[i]);
+          if (v > peak) peak = v;
+        }
+        const norm = peak > 0 ? 0.7 / peak : 1;
+        for (let i = 0; i < len; i++) out[i] *= norm;
+
+        buffer.getChannelData(ch).set(out);
+      }
+      return buffer;
+    }
+
     // Fade the comfort masking layer in/out without restarting the oscillators,
     // rebalancing the beat tone against the 25:75 acoustic golden ratio.
+    // Mask volume is a personal preference, so it rides a live gain ramp rather
+    // than a hardcoded constant — no rebuild, adjustable while listening.
+    setBinauralMaskLevel(pct, rampSeconds = 0.2) {
+      this.maskLevelScale = Math.max(0, Math.min(1, (pct || 0) / 100));
+      const target = Math.max(0.0001, this.binauralMaskModeGain * this.maskLevelScale);
+      this.binauralMaskBaseGain = target;
+
+      if (!this.ctx || !this.binauralMaskGainNode || !this.binauralMaskEnabled) return false;
+
+      const node = this.binauralMaskGainNode;
+      const now = this.ctx.currentTime;
+      try {
+        node.gain.cancelScheduledValues(now);
+        node.gain.setValueAtTime(Math.max(0.0001, node.gain.value), now);
+        node.gain.linearRampToValueAtTime(target, now + rampSeconds);
+      } catch (e) {
+        try { node.gain.setValueAtTime(target, now); } catch (err) {}
+      }
+      return true;
+    }
+
     setBinauralMasking(enabled, rampSeconds = 0.35) {
       if (!this.ctx || !this.binauralBeatGainNode || !this.binauralMaskGainNode) return false;
+      this.binauralMaskEnabled = enabled;
 
       const now = this.ctx.currentTime;
       const targets = [
         [this.binauralBeatGainNode, enabled ? 0.25 : 0.8],
-        [this.binauralMaskGainNode, enabled ? 0.75 : 0.0001]
+        // Restore whatever level this mask mode was built at, not a fixed 0.75.
+        [this.binauralMaskGainNode, enabled ? this.binauralMaskBaseGain : 0.0001]
       ];
 
       targets.forEach(([node, target]) => {
@@ -674,6 +790,10 @@
     dsStatusBadge: document.getElementById('dsStatusBadge'),
     dsDurationChips: document.querySelectorAll('.ds-duration-chip'),
     dsMaskChips: document.querySelectorAll('.ds-mask-chip'),
+    dsVolumeSlider: document.getElementById('dsVolumeSlider'),
+    dsVolumeVal: document.getElementById('dsVolumeVal'),
+    dsMaskLevelSlider: document.getElementById('dsMaskLevelSlider'),
+    dsMaskLevelVal: document.getElementById('dsMaskLevelVal'),
     dsStartPauseBtn: document.getElementById('dsStartPauseBtn'),
     dsResetBtn: document.getElementById('dsResetBtn'),
     dsRunInfoPanel: document.getElementById('dsRunInfoPanel'),
@@ -729,6 +849,9 @@
     binauralPerceivedText: document.getElementById('binauralPerceivedText'),
     binauralRatioText: document.getElementById('binauralRatioText'),
     comfortMaskingToggle: document.getElementById('comfortMaskingToggle'),
+    maskModeSelect: document.getElementById('maskModeSelect'),
+    maskLevelSlider: document.getElementById('maskLevelSlider'),
+    maskLevelVal: document.getElementById('maskLevelVal'),
     binauralVolSlider: document.getElementById('binauralVolSlider'),
     binauralVolVal: document.getElementById('binauralVolVal'),
 
@@ -827,13 +950,19 @@
     waveMode: 'alpha',
     baseFreq: 200, // Carrier Frequency (200 Hz optimal)
     volume: 25,
-    comfortMasking: true
+    comfortMasking: true,
+    maskMode: 'ambient', // 'ambient' (A) | 'blend' (B)
+    maskLevel: 50        // background mask volume, independent of beat volume
   };
 
   let deepSleepState = {
     running: false,
     paused: false,
     durationMins: 30,
+    // Sleep wants its own levels — borrowing the focus-studio volume from
+    // another tab was both too loud and unreachable from here.
+    volume: 25,
+    maskLevel: 50,
     elapsedSec: 0,
     startedAt: null,
     fadeStarted: false,
@@ -1932,7 +2061,8 @@
       const totalSec = Math.round(deepSleepState.durationMins * 60);
 
       // 120Hz Low Carrier + Initial 8.0Hz Alpha + Selected Masking Noise (Brown Noise, Forest Rain, YouTube, or None)
-      audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType || 'brown');
+      audioEngine.setBinauralMaskLevel(deepSleepState.maskLevel);
+      audioEngine.startBinauralBeats(120, 8.0, deepSleepState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType || 'brown', binauralState.maskMode);
       if (deepSleepState.maskingType === 'youtube') {
         DOM.loadYtBtn?.click();
       }
@@ -2071,11 +2201,18 @@
       });
     }
 
+    // The old "25% : 75%" label described gain coefficients, not what you hear.
+    // Measured in the critical band around the carrier, mode A leaves the tone
+    // ~16dB above the mask; mode B closes that to a few dB.
     function updateBinauralRatioText() {
       if (!DOM.binauralRatioText) return;
-      DOM.binauralRatioText.textContent = binauralState.comfortMasking
-        ? '純拍頻 25% : 粉紅遮罩音 75%（舒適防耳疲勞、維持腦波同步）'
-        : '純拍頻 100%（遮罩已關閉，長時間聆聽較易耳疲勞）';
+      if (!binauralState.comfortMasking) {
+        DOM.binauralRatioText.textContent = '純拍頻 100%（遮罩已關閉，長時間聆聽較易耳疲勞）';
+        return;
+      }
+      DOM.binauralRatioText.textContent = binauralState.maskMode === 'blend'
+        ? 'B 左右耳去相關包圍：柔化正弦波稜角、聲場更寬（音調仍高出遮罩約 13dB）'
+        : 'A 氛圍墊底：拍頻最清晰、遮罩僅作背景（音調高出遮罩約 19dB）';
     }
 
     function updateBinauralEngineUI() {
@@ -2111,7 +2248,9 @@
       updateBinauralRatioText();
 
       if (binauralState.enabled) {
-        audioEngine.startBinauralBeats(baseFreq, deltaF, binauralState.volume, binauralState.comfortMasking, 'pink');
+        // Restore this studio's own mask level — deep sleep keeps a separate one.
+        audioEngine.setBinauralMaskLevel(binauralState.maskLevel);
+        audioEngine.startBinauralBeats(baseFreq, deltaF, binauralState.volume, binauralState.comfortMasking, 'pink', binauralState.maskMode);
       } else {
         audioEngine.stopBinauralBeats(0.5);
       }
@@ -2178,10 +2317,29 @@
           stopYouTubeTrack();
         }
         if (deepSleepState.running) {
-          audioEngine.startBinauralBeats(120, 8.0, binauralState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType);
+          audioEngine.setBinauralMaskLevel(deepSleepState.maskLevel);
+          audioEngine.startBinauralBeats(120, 8.0, deepSleepState.volume, deepSleepUsesSynthMask(), deepSleepState.maskingType, binauralState.maskMode);
         }
       });
     });
+
+    // Deep sleep volume controls — live, no restart, only act while it's running
+    DOM.dsVolumeSlider?.addEventListener('input', (e) => {
+      deepSleepState.volume = parseInt(e.target.value, 10) || 0;
+      if (DOM.dsVolumeVal) DOM.dsVolumeVal.textContent = deepSleepState.volume;
+      if (deepSleepState.running) audioEngine.setBinauralVolume(deepSleepState.volume);
+    });
+
+    DOM.dsMaskLevelSlider?.addEventListener('input', (e) => {
+      deepSleepState.maskLevel = parseInt(e.target.value, 10) || 0;
+      if (DOM.dsMaskLevelVal) DOM.dsMaskLevelVal.textContent = deepSleepState.maskLevel;
+      if (deepSleepState.running) audioEngine.setBinauralMaskLevel(deepSleepState.maskLevel);
+    });
+
+    if (DOM.dsVolumeSlider) DOM.dsVolumeSlider.value = deepSleepState.volume;
+    if (DOM.dsVolumeVal) DOM.dsVolumeVal.textContent = deepSleepState.volume;
+    if (DOM.dsMaskLevelSlider) DOM.dsMaskLevelSlider.value = deepSleepState.maskLevel;
+    if (DOM.dsMaskLevelVal) DOM.dsMaskLevelVal.textContent = deepSleepState.maskLevel;
 
     DOM.dsStartPauseBtn?.addEventListener('click', () => {
       startDeepSleepStudioEngine();
@@ -2210,6 +2368,26 @@
       updateBinauralRatioText();
     });
 
+    DOM.maskLevelSlider?.addEventListener('input', (e) => {
+      binauralState.maskLevel = parseInt(e.target.value, 10) || 0;
+      if (DOM.maskLevelVal) DOM.maskLevelVal.textContent = binauralState.maskLevel;
+      audioEngine.setBinauralMaskLevel(binauralState.maskLevel);
+    });
+
+    DOM.maskModeSelect?.addEventListener('change', (e) => {
+      binauralState.maskMode = e.target.value === 'blend' ? 'blend' : 'ambient';
+      updateBinauralRatioText();
+      // The filter topology differs per mode, so this one genuinely needs a
+      // rebuild — unlike the masking on/off toggle, which is a live gain ramp.
+      if (deepSleepState.running) {
+        audioEngine.setBinauralMaskLevel(deepSleepState.maskLevel);
+        audioEngine.startBinauralBeats(120, 8.0, deepSleepState.volume,
+          deepSleepUsesSynthMask(), deepSleepState.maskingType, binauralState.maskMode);
+      } else if (binauralState.enabled) {
+        updateBinauralEngineUI();
+      }
+    });
+
     DOM.binauralVolSlider?.addEventListener('input', (e) => {
       binauralState.volume = parseInt(e.target.value, 10);
       if (DOM.binauralVolVal) DOM.binauralVolVal.textContent = binauralState.volume;
@@ -2219,6 +2397,10 @@
     });
 
     // Sync Initial Binaural Beats UI display (Alpha 10Hz Default)
+    if (DOM.maskModeSelect) DOM.maskModeSelect.value = binauralState.maskMode;
+    if (DOM.maskLevelSlider) DOM.maskLevelSlider.value = binauralState.maskLevel;
+    if (DOM.maskLevelVal) DOM.maskLevelVal.textContent = binauralState.maskLevel;
+    audioEngine.setBinauralMaskLevel(binauralState.maskLevel);
     updateBinauralEngineUI();
 
     // Dedicated Sound Sleep Auto-Off Timer Logic (Precision to Seconds)
