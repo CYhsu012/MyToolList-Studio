@@ -34,7 +34,7 @@
     <div class="tool-grid">
       <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
       <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
-        <div class="tool-card-badge" data-app-version>v0.9.0-beta</div>
+        <div class="tool-card-badge" data-app-version>v0.9.1-beta</div>
         <div class="tool-card-icon">🍅</div>
         <div class="tool-card-info">
           <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
@@ -78,7 +78,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> <span data-app-version>v0.9.0-beta</span>
+            <span class="beta-pulse"></span> <span data-app-version>v0.9.1-beta</span>
           </button>
         </div>
       
@@ -299,17 +299,22 @@
               </button>
             </div>
 
-            <!-- 常用控制：音量 -->
+            <!-- 常用控制：拍頻音量與遮罩音量（成對，邊聽邊調） -->
             <div class="binaural-controls-row">
               <div class="binaural-volume-box">
-                <span class="vol-label">🔊 音量: <span id="binauralVolVal">25</span>%</span>
+                <span class="vol-label">🔊 拍頻音量: <span id="binauralVolVal">25</span>%</span>
                 <input type="range" id="binauralVolSlider" min="0" max="100" value="25" title="雙耳拍頻主音量">
+              </div>
+
+              <div class="mask-level-box">
+                <span class="vol-label">🌫️ 遮罩音量: <span id="maskLevelVal">50</span>%</span>
+                <input type="range" id="maskLevelSlider" min="0" max="100" value="50" title="只調整背景遮罩音，不影響拍頻音量">
               </div>
             </div>
 
             <!-- 進階設定：基頻載波、防聽覺疲勞遮罩、聲學數據面板（預設收合） -->
             <button type="button" id="binauralAdvancedToggle" class="audio-advanced-toggle" aria-expanded="false">
-              <span class="adv-toggle-arrow">▸</span> 進階設定：基頻載波、防聽覺疲勞遮罩、聲學數據面板
+              <span class="adv-toggle-arrow">▸</span> 進階設定：基頻載波、遮罩模式 A/B、聲學數據面板
             </button>
             <div id="binauralAdvancedPanel" class="binaural-advanced-panel hidden">
               <div class="carrier-freq-box">
@@ -327,6 +332,15 @@
                 <input type="checkbox" id="comfortMaskingToggle" checked>
                 <span>🌿 防聽覺疲勞柔和遮罩 (Pink Noise)</span>
               </label>
+
+              <!-- 遮罩聲學模式 A/B 切換 -->
+              <div class="mask-mode-box">
+                <span class="mask-mode-label">🎚️ 遮罩模式:</span>
+                <select id="maskModeSelect" class="carrier-select" title="A = 原始寬頻墊底音，拍頻最清晰；B = 左右耳獨立不相關噪音，聲場較寬、正弦波稜角較柔（拍頻仍清楚）">
+                  <option value="ambient">A · 氛圍墊底（拍頻最清晰）</option>
+                  <option value="blend">B · 去相關包圍（聲場較寬）</option>
+                </select>
+              </div>
 
               <!-- 實時物理聲學數據面板 (3-Column Metrics Dashboard) -->
               <div class="binaural-sensory-panel">
@@ -384,6 +398,18 @@
                 <button class="ds-mask-chip" data-mask="forestRain" title="靜謐森林雨聲 (YT p5BwXeU0Z1c 雙層重現)">🌲 靜謐森林雨</button>
                 <button class="ds-mask-chip" data-mask="youtube" title="搭配上方 YouTube 客製音軌/影片">📺 YouTube 音軌</button>
                 <button class="ds-mask-chip" data-mask="none" title="關閉背景遮罩音 (僅聽純雙耳拍頻)">🚫 關閉遮罩 (純拍頻)</button>
+              </div>
+
+              <!-- 助眠專屬音量（與雙耳拍頻分頁各自獨立，可播放中即時調整） -->
+              <div class="ds-volume-row">
+                <div class="ds-volume-box">
+                  <span class="ds-vol-label">🧠 拍頻音量: <span id="dsVolumeVal">25</span>%</span>
+                  <input type="range" id="dsVolumeSlider" min="0" max="100" value="25" title="助眠拍頻音量（獨立於雙耳拍頻分頁）">
+                </div>
+                <div class="ds-volume-box">
+                  <span class="ds-vol-label">🌫️ 遮罩音量: <span id="dsMaskLevelVal">50</span>%</span>
+                  <input type="range" id="dsMaskLevelSlider" min="0" max="100" value="50" title="助眠背景遮罩音量，不影響拍頻">
+                </div>
               </div>
 
               <div class="ds-action-buttons">
@@ -686,8 +712,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num" data-app-version>v0.9.0-beta</div>
-            <div class="v-desc">本版本重構資訊架構（音效工作室分頁化、計時器獨立、迷你控制台合併）、將三組計時器改為時間戳錨定以支援手機鎖屏、修補匯入備份的 XSS 風險，並完成手機端觸控與版面強化。</div>
+            <div class="v-num" data-app-version>v0.9.1-beta</div>
+            <div class="v-desc">本版本修正音訊輸出繞經 MediaStream 造成的週期性音高飄動、新增遮罩模式 A/B 與助眠專屬音量滑桿、改為無縫循環噪音，並修補 601–900px 視窗寬度的橫向破版。</div>
           </div>
 
           <hr class="divider">
@@ -700,11 +726,11 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge minor">MINOR 次版本</span>
-              <span class="rule-text"><strong>v0.9.0</strong>（當前）：資訊架構重構、時間戳錨定計時引擎、迷你控制台重新設計與手機端支援。</span>
+              <span class="rule-text"><strong>v0.9.0</strong>：資訊架構重構、時間戳錨定計時引擎、迷你控制台重新設計與手機端支援。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
-              <span class="rule-text"><strong>v0.9.1</strong>：後續 Bug 修復、CSS 響應式微調與音量參數校正。</span>
+              <span class="rule-text"><strong>v0.9.1</strong>（當前）：音高飄動修正、遮罩模式 A/B、助眠專屬音量與響應式破版修補。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge stage">STAGE 階段標籤</span>
