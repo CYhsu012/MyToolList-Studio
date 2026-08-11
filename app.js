@@ -11,7 +11,7 @@
   // Single source of truth for the version string. Every place that shows it
   // carries data-app-version and is stamped at boot, so the tool-list badge
   // can no longer drift out of sync with the app header.
-  const APP_VERSION = 'v0.9.1-beta';
+  const APP_VERSION = 'v0.10.0-beta';
 
   const STORAGE_KEYS = {
     SETTINGS: 'pomoflow_settings',
@@ -776,6 +776,10 @@
     // Main Tool List & Navigation UI
     toolListView: document.getElementById('toolListView'),
     pomodoroAppView: document.getElementById('pomodoroAppView'),
+    gameView: document.getElementById('gameView'),
+    gameFrame: document.getElementById('gameFrame'),
+    openGameToolCard: document.getElementById('openGameToolCard'),
+    backFromGameBtn: document.getElementById('backFromGameBtn'),
     openPomodoroToolCard: document.getElementById('openPomodoroToolCard'),
     backToToolListBtn: document.getElementById('backToToolListBtn'),
     miniFloatingWidget: document.getElementById('miniFloatingWidget'),
@@ -920,18 +924,29 @@
   // --------------------------------------------------------------------------
   // 4. Navigation & Mini Widget Logic
   // --------------------------------------------------------------------------
-  let activeView = 'toolList'; // 'toolList' | 'pomodoroApp'
+  let activeView = 'toolList'; // 'toolList' | 'pomodoroApp' | 'game'
 
   function switchView(viewName) {
     activeView = viewName;
+
+    const show = (el, on) => { if (el) el.classList.toggle('hidden', !on); };
+    show(DOM.toolListView, viewName === 'toolList');
+    show(DOM.pomodoroAppView, viewName === 'pomodoroApp');
+    show(DOM.gameView, viewName === 'game');
+
+    if (viewName === 'game' && DOM.gameFrame) {
+      // Load lazily on first entry, then keep the frame alive so leaving and
+      // re-entering doesn't restart the player's run.
+      const src = 'games/yakyulife/index.html';
+      if (!DOM.gameFrame.getAttribute('src') || DOM.gameFrame.getAttribute('src') === 'about:blank') {
+        DOM.gameFrame.setAttribute('src', src);
+      }
+    }
+
     if (viewName === 'toolList') {
-      if (DOM.toolListView) DOM.toolListView.classList.remove('hidden');
-      if (DOM.pomodoroAppView) DOM.pomodoroAppView.classList.add('hidden');
       checkAndUpdateMiniWidget();
-    } else {
-      if (DOM.toolListView) DOM.toolListView.classList.add('hidden');
-      if (DOM.pomodoroAppView) DOM.pomodoroAppView.classList.remove('hidden');
-      if (DOM.miniFloatingWidget) DOM.miniFloatingWidget.classList.add('hidden');
+    } else if (DOM.miniFloatingWidget) {
+      DOM.miniFloatingWidget.classList.add('hidden');
     }
   }
 
@@ -1866,6 +1881,13 @@
     // Main Navigation & Mini Widget Events
     DOM.openPomodoroToolCard?.addEventListener('click', () => switchView('pomodoroApp'));
     DOM.backToToolListBtn?.addEventListener('click', () => switchView('toolList'));
+
+    DOM.openGameToolCard?.addEventListener('click', (e) => {
+      // The "open in new tab" link inside the view handles itself; this is the card.
+      if (e.target.closest('a')) return;
+      switchView('game');
+    });
+    DOM.backFromGameBtn?.addEventListener('click', () => switchView('toolList'));
     // The dock's navigation target is its own button, so the action buttons are
     // no longer overlapping click regions that need stopPropagation guards.
     DOM.miniWidgetOpenBtn?.addEventListener('click', () => switchView('pomodoroApp'));

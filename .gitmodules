@@ -1,0 +1,4 @@
+[submodule "games/yakyulife"]
+	path = games/yakyulife
+	url = https://github.com/CYhsu012/yakyulife_Tomorin.git
+	branch = main

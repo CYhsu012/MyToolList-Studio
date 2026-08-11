@@ -4,7 +4,7 @@
 > 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
 > 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.9.1--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.10.0--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -18,17 +18,35 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.9.1-beta`（公開開發測試版）  
-> **版本狀態**：修正音訊繞經 MediaStream 造成的週期性音高飄動、新增遮罩模式 A/B 與助眠專屬音量滑桿、噪音改為無縫循環並正規化，並修補 601–900px 視窗寬度的橫向破版。
+> **當前版本號**：`v0.10.0-beta`（公開開發測試版）  
+> **版本狀態**：新增第二個工具模組 **⚾ YaKyuLife 棒球人生**（以 git submodule 引入，可獨立更新），採同源 iframe 內嵌，切換到遊戲時番茄鐘與音訊持續在背景執行。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
 | 階段 / 欄位 | 說明與進版條件 | 範例 |
 | :--- | :--- | :--- |
 | **MAJOR (主版本)** | 當進行重大架構升級、UI 大版本翻新或 PWA 離線快取正式版發布時遞增。 | `v1.0.0` (正式發布版) |
-| **MINOR (次版本)** | 當新增全新功能模組或進行資訊架構／核心引擎重構時遞增。 | `v0.9.0` (**當前**) |
-| **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.9.1` |
+| **MINOR (次版本)** | 當新增全新功能模組或進行資訊架構／核心引擎重構時遞增。 | `v0.10.0` (**當前**) |
+| **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.10.1` |
 | **STAGE (階段標籤)** | `-alpha` (內部實驗版) $\rightarrow$ `-beta` (**當前階段**) $\rightarrow$ `-rc` (準發布版) $\rightarrow$ 正式版。 | `v0.8.5-beta` |
+
+### 📋 v0.10.0-beta 變更摘要
+
+**新增工具模組：⚾ YaKyuLife 棒球人生**
+- 以 **git submodule** 引入 [`CYhsu012/yakyulife_Tomorin`](https://github.com/CYhsu012/yakyulife_Tomorin)，遊戲維持獨立 repo、可單獨更新。
+- 採**同源 iframe** 內嵌（`games/yakyulife/index.html`）而非外部連結：切換到遊戲時番茄鐘計時與雙耳拍頻／環境音**持續在背景執行**，不會中斷。
+- iframe 首次進入才載入，之後保留實例 —— 離開再回來不會重置遊戲進度。
+- 另附「↗️ 新分頁開啟」供全螢幕遊玩。
+- 部署流程加上 `submodules: recursive`，否則 GitHub Pages 會部署出空資料夾。
+
+#### 更新遊戲版本
+
+```bash
+git submodule update --remote games/yakyulife
+git add games/yakyulife && git commit -m "chore: bump yakyulife submodule"
+```
+
+---
 
 ### 📋 v0.9.1-beta 變更摘要
 
@@ -155,12 +173,21 @@ python -m http.server 3000
 ## 📂 檔案結構 (Project Structure)
 
 ```
-Binaural-Beats-Tool/
-├── index.html        # 主頁面結構、語意化 HTML5、Modal 彈窗、雙耳拍頻面板
-├── styles.css        # CSS 設計系統（玻璃擬物、主題變數、響應式佈局）
-├── app.js            # 核心邏輯（Web Audio 音訊引擎、Timer 控制器、任務與圖表）
-└── README.md         # 專案說明文件
+MyToolList-Studio/
+├── index.html            # 主頁面結構、三大檢視（工具列表／番茄鐘／遊戲）、Modal 彈窗
+├── styles.css            # CSS 設計系統（玻璃擬物、主題變數、響應式佈局）
+├── app.js                # 核心邏輯（Web Audio 音訊引擎、Timer 控制器、任務與圖表）
+├── games/
+│   └── yakyulife/        # git submodule → CYhsu012/yakyulife_Tomorin（獨立更新）
+├── .gitmodules           # submodule 設定
+└── README.md             # 專案說明文件
 ```
+
+> ⚠️ Clone 本專案時需一併取得 submodule：
+> ```bash
+> git clone --recurse-submodules https://github.com/CYhsu012/MyToolList-Studio.git
+> ```
+> 若已 clone，補拉：`git submodule update --init --recursive`
 
 ---
 
