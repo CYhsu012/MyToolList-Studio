@@ -15,6 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # games/yakyulife is a submodule; without this the folder deploys empty
+          submodules: recursive
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
