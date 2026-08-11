@@ -11,7 +11,7 @@
   // Single source of truth for the version string. Every place that shows it
   // carries data-app-version and is stamped at boot, so the tool-list badge
   // can no longer drift out of sync with the app header.
-  const APP_VERSION = 'v0.10.0-beta';
+  const APP_VERSION = 'v0.10.1-beta';
 
   const STORAGE_KEYS = {
     SETTINGS: 'pomoflow_settings',

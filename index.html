@@ -34,7 +34,7 @@
     <div class="tool-grid">
       <!-- Tool Item 1: Pomodoro & Binaural Beats App -->
       <div id="openPomodoroToolCard" class="tool-card active-tool-card" title="點擊進入番茄鐘與雙耳拍頻工具">
-        <div class="tool-card-badge" data-app-version>v0.10.0-beta</div>
+        <div class="tool-card-badge" data-app-version>v0.10.1-beta</div>
         <div class="tool-card-icon">🍅</div>
         <div class="tool-card-info">
           <h3>PomodoroFlow & 雙耳拍頻 Studio</h3>
@@ -43,12 +43,12 @@
         <button class="btn btn-primary btn-enter-tool">🚀 開啟工具</button>
       </div>
 
-      <!-- Tool Item 2: YaKyuLife 棒球人生模擬遊戲 (git submodule) -->
+      <!-- Tool Item 2: YakyuLife 棒球人生模擬遊戲 (git submodule) -->
       <div id="openGameToolCard" class="tool-card active-tool-card" title="點擊進入棒球人生模擬遊戲">
         <div class="tool-card-badge">Game</div>
         <div class="tool-card-icon">⚾</div>
         <div class="tool-card-info">
-          <h3>YaKyuLife 棒球人生</h3>
+          <h3>YakyuLife 棒球人生</h3>
           <p>文字型棒球生涯模擬：從高中出發，歷經選秀、旅外與國際賽，直到引退。</p>
         </div>
         <button class="btn btn-primary btn-enter-tool">🎮 開始遊戲</button>
@@ -79,7 +79,7 @@
           <h1 class="brand-title">Pomodoro<span class="gradient-text">Flow</span></h1>
           <!-- 開發測試版本號標籤 -->
           <button id="versionBadgeBtn" class="version-badge" title="點擊查看當前測試版本資訊與進版規範">
-            <span class="beta-pulse"></span> <span data-app-version>v0.10.0-beta</span>
+            <span class="beta-pulse"></span> <span data-app-version>v0.10.1-beta</span>
           </button>
         </div>
       
@@ -713,8 +713,8 @@
         <div class="modal-body">
           <div class="version-status-card">
             <div class="v-tag">當前狀態：開發測試版 (Public Beta)</div>
-            <div class="v-num" data-app-version>v0.10.0-beta</div>
-            <div class="v-desc">本版本新增第二個工具模組「⚾ YaKyuLife 棒球人生」，以 git submodule 引入可獨立更新，並採同源 iframe 內嵌 —— 進入遊戲時番茄鐘與音訊持續在背景執行、離開再回來不會重置遊戲進度。</div>
+            <div class="v-num" data-app-version>v0.10.1-beta</div>
+            <div class="v-desc">本版本新增第二個工具模組「⚾ YakyuLife 棒球人生」，以 git submodule 引入可獨立更新，並採同源 iframe 內嵌 —— 進入遊戲時番茄鐘與音訊持續在背景執行、離開再回來不會重置遊戲進度。</div>
           </div>
 
           <hr class="divider">
@@ -727,7 +727,7 @@
             </div>
             <div class="rule-item">
               <span class="rule-badge minor">MINOR 次版本</span>
-              <span class="rule-text"><strong>v0.10.0</strong>（當前）：新增 YaKyuLife 遊戲模組（git submodule + 同源 iframe）。</span>
+              <span class="rule-text"><strong>v0.10.0</strong>（當前）：新增 YakyuLife 遊戲模組（git submodule + 同源 iframe）。</span>
             </div>
             <div class="rule-item">
               <span class="rule-badge patch">PATCH 修補號</span>
@@ -761,19 +761,23 @@
   </div> <!-- Close .app-container -->
 </div> <!-- Close #pomodoroAppView -->
 
-  <!-- 主介面 3：YaKyuLife 遊戲（同源 iframe，番茄鐘與音訊持續在背景執行） -->
+  <!-- 主介面 3：YakyuLife 遊戲（同源 iframe，番茄鐘與音訊持續在背景執行） -->
   <div id="gameView" class="hidden">
     <div class="game-shell">
       <header class="game-header">
         <button id="backFromGameBtn" class="btn btn-secondary btn-small btn-back-tools" title="返回 My Tool List（遊戲進度由遊戲自身保存）">
           ⬅️ 返回工具列表
         </button>
-        <span class="game-title">⚾ YaKyuLife 棒球人生</span>
+        <span class="game-title">⚾ YakyuLife 棒球人生</span>
         <a id="gameOpenNewTabBtn" class="btn btn-secondary btn-small" href="games/yakyulife/index.html" target="_blank" rel="noopener" title="以獨立分頁全螢幕遊玩">↗️ 新分頁開啟</a>
       </header>
       <div class="game-frame-wrapper">
-        <iframe id="gameFrame" class="game-frame" title="YaKyuLife 棒球人生模擬遊戲" src="about:blank" loading="lazy"></iframe>
+        <iframe id="gameFrame" class="game-frame" title="YakyuLife 棒球人生模擬遊戲" src="about:blank" loading="lazy"></iframe>
       </div>
+      <p class="game-credit">
+        本遊戲為 <a href="https://github.com/leoggcat/yakyulife" target="_blank" rel="noopener">leoggcat/yakyulife</a> 的分支版本
+        （<a href="https://github.com/CYhsu012/yakyulife_Tomorin" target="_blank" rel="noopener">CYhsu012/yakyulife_Tomorin</a>），原作著作權歸原作者所有。
+      </p>
     </div>
   </div>
 
