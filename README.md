@@ -4,7 +4,7 @@
 > 主介面以 **My Tool List** 為中心，整合 **🍅 PomodoroFlow 番茄鐘**、**🧠 雙耳拍頻 (Binaural Beats)**、**🌙 NREM 慢波深眠引導實驗室** 與未來工具箱。
 > 包含任務管理、數據圖表、Web Audio API 原生離線白噪音、雙耳拍頻黃金聲學比例、定時睡眠自動關閉與全螢幕禪模式。
 
-![Version](https://img.shields.io/badge/version-v0.10.0--beta-purple.svg)
+![Version](https://img.shields.io/badge/version-v0.10.1--beta-purple.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
@@ -18,8 +18,8 @@
 
 本專案採用 **[SemVer 2.0.0 (語意化版本號號碼規範)](https://semver.org/lang/zh-TW/)**：
 
-> **當前版本號**：`v0.10.0-beta`（公開開發測試版）  
-> **版本狀態**：新增第二個工具模組 **⚾ YaKyuLife 棒球人生**（以 git submodule 引入，可獨立更新），採同源 iframe 內嵌，切換到遊戲時番茄鐘與音訊持續在背景執行。
+> **當前版本號**：`v0.10.1-beta`（公開開發測試版）  
+> **版本狀態**：新增第二個工具模組 **⚾ YakyuLife 棒球人生**（以 git submodule 引入，可獨立更新），採同源 iframe 內嵌，切換到遊戲時番茄鐘與音訊持續在背景執行。
 
 ### 📌 版本號遞增規則 (vMAJOR.MINOR.PATCH-STAGE)
 
@@ -30,9 +30,19 @@
 | **PATCH (修補號)** | 當進行 Bug 修復、CSS 響應式排版微調、演算法音量參數校正時遞增。 | `v0.10.1` |
 | **STAGE (階段標籤)** | `-alpha` (內部實驗版) $\rightarrow$ `-beta` (**當前階段**) $\rightarrow$ `-rc` (準發布版) $\rightarrow$ 正式版。 | `v0.8.5-beta` |
 
+### 📋 v0.10.1-beta 變更摘要
+
+- **修補 YakyuLife 分享連結可執行任意程式碼的問題 (XSS)**（修改於 fork：[CYhsu012/yakyulife_Tomorin](https://github.com/CYhsu012/yakyulife_Tomorin)）。
+  遊戲的 `SEED` 直接取用網址 `?seed=` 參數並交給 `innerHTML`，`?seed=<img src=x onerror=...>` 這類分享連結會在對方瀏覽器執行程式碼；
+  因遊戲以同源 iframe 內嵌，該程式碼可存取本工具集的 localStorage。已改為白名單限制，並在遊戲入口濾除姓名的 HTML 特殊字元。
+- 修正遊戲標題拼字：`YaKyoLife` → `YakyuLife`（含 og/twitter meta 與工具集內所有引用）。
+- 遊戲畫面與遊戲 README 加註 fork 來源與原作連結，標明著作權歸原作者所有。
+
+---
+
 ### 📋 v0.10.0-beta 變更摘要
 
-**新增工具模組：⚾ YaKyuLife 棒球人生**
+**新增工具模組：⚾ YakyuLife 棒球人生**
 - 以 **git submodule** 引入 [`CYhsu012/yakyulife_Tomorin`](https://github.com/CYhsu012/yakyulife_Tomorin)，遊戲維持獨立 repo、可單獨更新。
 - 採**同源 iframe** 內嵌（`games/yakyulife/index.html`）而非外部連結：切換到遊戲時番茄鐘計時與雙耳拍頻／環境音**持續在背景執行**，不會中斷。
 - iframe 首次進入才載入，之後保留實例 —— 離開再回來不會重置遊戲進度。

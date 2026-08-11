@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b1a12">
-<title>YaKyoLife - 棒球人生模擬器</title>
+<title>YakyuLife - 棒球人生模擬器</title>
 <meta name="description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="YaKyoLife - 棒球人生模擬器">
+<meta property="og:title" content="YakyuLife - 棒球人生模擬器">
 <meta property="og:description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="YaKyoLife - 棒球人生模擬器">
+<meta name="twitter:title" content="YakyuLife - 棒球人生模擬器">
 <meta name="twitter:description" content="從高中三大賽到名人堂，一場種子化的台灣棒球員生涯模擬。選秀、旅外、國際賽、傷病、感情、引退——每一個決定都算數。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23fff%22 stroke=%22%23d0d0d0%22/%3E%3Cpath d=%22M8 6 Q13 16 8 26 M24 6 Q19 16 24 26%22 stroke=%22%23c0392b%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2214%22 fill=%22%23fff%22 stroke=%22%23d0d0d0%22/%3E%3Cpath d=%22M8 6 Q13 16 8 26 M24 6 Q19 16 24 26%22 stroke=%22%23c0392b%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3C/svg%3E">
@@ -122,6 +122,9 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
 .seg button.on{background:var(--panel2);color:var(--amber);border-color:var(--amber)}
 .seedline{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:22px}
 .seedline b{color:var(--amber)}
+.forknote{font-size:11.5px;line-height:1.7;color:var(--dim);margin-top:26px;
+  padding-top:14px;border-top:1px solid var(--edge)}
+.forknote a{color:var(--blue)}
 .stitch{width:64px;height:64px;border-radius:50%;background:var(--chalk);position:relative;box-shadow:inset -6px -8px 0 #00000014}
 .stitch::before,.stitch::after{content:'';position:absolute;top:8px;bottom:8px;width:18px;
   border:3px dashed #b3402f;border-top:none;border-bottom:none}
@@ -142,7 +145,7 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
 <div id="start">
   <div class="wrap">
     <div class="stitch"></div>
-    <h1 id="logo-tap">YaKyoLife<br><em>棒球人生模擬器</em></h1>
+    <h1 id="logo-tap">YakyuLife<br><em>棒球人生模擬器</em></h1>
     <div id="ver-badge" style="position:fixed;top:6px;right:8px;font-size:10px;letter-spacing:1px;color:var(--dim);opacity:.55;font-family:monospace;z-index:50;pointer-events:none">v1.3.3</div>
         <p class="sub">高中三年養成 → 選秀・旅日・旅美 → 國際賽 → 衰退與引退。每一顆骰子都算數。</p>
     <div class="field"><label>球員姓名</label><input id="in-name" maxlength="10" placeholder="例如：林家正" value=""></div>
@@ -152,6 +155,7 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
         <button data-v="IF">內野手</button><button data-v="OF">外野手</button>
       </div></div>
     <button class="btn main" style="margin-top:28px" id="btn-start">開始生涯 ▸ 高一春天</button>
+    <p class="forknote">本作為 <a href="https://github.com/leoggcat/yakyulife" target="_blank" rel="noopener">leoggcat/yakyulife</a> 的分支版本，由 <a href="https://github.com/CYhsu012/yakyulife_Tomorin" target="_blank" rel="noopener">CYhsu012</a> 修改維護。原作著作權歸原作者所有。</p>
     <p class="seedline">世界種子
       <input id="seed-show" maxlength="24" style="width:120px;background:#0e2015;color:#ffc95c;border:1px solid #2b4a38;border-radius:6px;padding:2px 6px;font-family:inherit;font-size:12px;text-align:center">
       · <a href="#" id="seed-re" style="color:var(--blue)">換一個</a><br>相同種子＋相同選擇＝相同人生（可直接輸入朋友的種子碼）</p>
@@ -178,7 +182,13 @@ table.fin td:first-child,table.fin th:first-child{text-align:left}
 </div>
 <script>
 /* ================= RNG（種子化） ================= */
-let SEED = new URLSearchParams(location.search).get('seed') || Math.random().toString(36).slice(2,10);
+/* 種子只允許英數與 - _，長度上限 24。
+   舊版直接採用網址帶進來的字串，而 choose() 是用 innerHTML 渲染
+   「seed: 」那行，於是 ?seed=<img src=x onerror=...> 這種分享連結
+   會在對方瀏覽器執行任意程式碼。種子本來就只有英數，用白名單擋掉。 */
+function sanitizeSeed(s){ return String(s||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,24); }
+function randomSeed(){ return Math.random().toString(36).slice(2,10); }
+let SEED = sanitizeSeed(new URLSearchParams(location.search).get('seed')) || randomSeed();
 let _s = 0;
 function seedInit(str){ _s = 1779033703; for(let i=0;i<str.length;i++){ _s = Math.imul(_s ^ str.charCodeAt(i), 3432918353); _s = _s<<13 | _s>>>19; } }
 function R(){ _s|=0; _s = _s + 0x6D2B79F5 |0; let t = Math.imul(_s ^ _s>>>15, 1|_s); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t ^ t>>>14)>>>0)/4294967296; }
@@ -2400,14 +2410,16 @@ function shareImage(evals,out){
 })();
 let selPos='P';
 $('seed-show').value=SEED;
-$('seed-re').onclick=e=>{e.preventDefault();SEED=Math.random().toString(36).slice(2,10);$('seed-show').value=SEED;};
+$('seed-re').onclick=e=>{e.preventDefault();SEED=randomSeed();$('seed-show').value=SEED;};
 document.querySelectorAll('#seg-pos button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#seg-pos button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on'); selPos=b.dataset.v;
 });
 $('btn-start').onclick=()=>{
-  const nm=$('in-name').value.trim()||'黃鎖頭';
-  const sv=$('seed-show').value.trim(); if(sv)SEED=sv; /* 玩家可直接輸入流水碼 */
+  /* 姓名同樣會進 innerHTML（記分板、球員誕生卡、引退串），
+     在入口就去掉 HTML 特殊字元，讓後面所有用途都安全。 */
+  const nm=$('in-name').value.trim().replace(/[<>&"']/g,'')||'黃鎖頭';
+  const sv=sanitizeSeed($('seed-show').value.trim()); if(sv)SEED=sv; /* 玩家可直接輸入流水碼 */
   history.replaceState(null,'','?seed='+encodeURIComponent(SEED));
   seedInit(SEED);
   S=newState(nm,selPos,null);
